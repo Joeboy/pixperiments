@@ -1,3 +1,6 @@
+#ifndef UART_H
+#define UART_H
+
 extern void PUT32 ( unsigned int, unsigned int );
 extern unsigned int GET32 ( unsigned int );
 extern void dummy ( unsigned int );
@@ -119,3 +122,4 @@ void dump_int(unsigned int v) {
     uart_putc(0x0D);
     uart_putc(0x0A);
 }
+#endif

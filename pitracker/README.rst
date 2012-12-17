@@ -12,9 +12,13 @@ invaluable in getting started.
 
 Things to do:
 -------------
- * buffering would probably help eliminate the unpleasant crackling.
+ * Buffering would probably help eliminate the unpleasant crackling.
  * Under linux, the pwm seems to be driven from a much faster clock ('plla')
    than the one I'm using, which would allow for much better quality audio. I
    can't work out how to make it work with plla though.
  * Maybe write or import some actual music rather than the current nonsense
- * Implement a less rubbish synth engine
+ * Implement a less rubbish synth engine.
+ * Read MIDI input. We have uarts so shouldn't be too hard. I predict the
+   main challenge will be digging out the obsolescent hardware.
+ * Play MIDI files from the SD card.
+ * Implement LV2 plugins.

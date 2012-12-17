@@ -1,21 +1,15 @@
 #include "pi_hardware.h"
+#include "pi_audio.c"
 #include "reboot.c"
 #include "uart.c"
 #include "math.c"
+//#include "ringbuffer.c"
 #include "notefreqs.c"
 #include "tune.c"
 
 
-#define ERRORMASK (BCM2835_GAPO2 | BCM2835_GAPO1 | \
-    BCM2835_RERR1 | BCM2835_WERR1)
 
 #define NUM_VOICES 6
-
-volatile unsigned* gpio = (void*)GPIO_BASE;
-volatile unsigned* clk = (void*)CLOCK_BASE;
-volatile unsigned* pwm = (void*)PWM_BASE;
-
-unsigned int samplerate;
 
 typedef struct {
     float freq;
@@ -48,67 +42,11 @@ void note_on(unsigned int note_no, unsigned int off_time) {
     voices[best_voice].off_time = off_time;
 }
 
-
-void pause(int t) {
-    // Pause for about t ms
-    int i;
-    for (;t>0;t--) {
-        for (i=5000;i>0;i--) dummy(i);
-    }
-}
-
-
-static void audio_init(void)
-{
-    // Set up the pwm clock
-    // vals read from raspbian:
-    // PWMCLK_CNTL = 148 = 10010100 - 100 is allegedly 'plla' but I can't make that work
-    // PWMCLK_DIV = 16384
-    // PWM_CONTROL=9509 = 10010100100101
-    // PWM0_RANGE=1024
-    // PWM1_RANGE=1024
-    unsigned int range = 0x200;
-    unsigned int idiv = 2; // 1 seems to fail
-    SET_GPIO_ALT(40, 0);
-    SET_GPIO_ALT(45, 0);
-    pause(1); // I don't know if all these pauses are really necessary
-    *(clk + BCM2835_PWMCLK_CNTL) = PM_PASSWORD | (1 << 5);
-
-    samplerate = 19200000 / range / idiv;
-    *(clk + BCM2835_PWMCLK_DIV)  = PM_PASSWORD | (idiv<<12);
-    
-    *(clk + BCM2835_PWMCLK_CNTL) = PM_PASSWORD | 16 | 1; // enable + oscillator
-//    *(clk + BCM2835_PWMCLK_CNTL) = PM_PASSWORD | 16 | 4; // enable + plla
-    pause(1);
-
-    // disable PWM
-    *(pwm + BCM2835_PWM_CONTROL) = 0;
-    
-    pause(1);
-
-    *(pwm+BCM2835_PWM0_RANGE) = range;
-    *(pwm+BCM2835_PWM1_RANGE) = range;
-
-    *(pwm+BCM2835_PWM_CONTROL) =
-          BCM2835_PWM1_USEFIFO | 
-//          BCM2835_PWM1_REPEATFF |
-          BCM2835_PWM1_ENABLE | 
-          BCM2835_PWM0_USEFIFO | 
-//          BCM2835_PWM0_REPEATFF |
-          BCM2835_PWM0_ENABLE | 1<<6;
-
-    pause(1);
-    uart_print("audio init done\r\n");
-}
-
-
-int notmain ( unsigned int earlypc )
-{
+int notmain ( unsigned int earlypc ) {
     uart_init();
     audio_init();
 
     unsigned int ra;
-    long status;
     unsigned int note_iter = 0, bass_note_iter=0;
     unsigned int t=0;
     unsigned int i;
@@ -149,8 +87,7 @@ int notmain ( unsigned int earlypc )
             }
         }
 
-        status =  *(pwm + BCM2835_PWM_STATUS);
-        if (!(status & BCM2835_FULL1)) {
+        if (!audio_fifo_unavailable()) {
             // calculate and write the next value in our output wave
             if (notes[note_iter].on_time == t) {
                 note_on(transpose + notes[note_iter].note_no, notes[note_iter].off_time);
@@ -187,13 +124,6 @@ int notmain ( unsigned int earlypc )
             }
             *(pwm+BCM2835_PWM_FIFO) = 256 + (int)(out);
             t++;
-        }
-        if ((status & ERRORMASK)) {
-//                uart_print("error: ");
-//                hexstring(status);
-//                uart_print("\r\n");
-                /* clear errors fo next time around */
-            *(pwm+BCM2835_PWM_STATUS) = ERRORMASK;
         }
     }
 }

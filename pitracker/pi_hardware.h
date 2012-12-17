@@ -64,4 +64,18 @@
 extern void PUT32 ( unsigned int, unsigned int );
 extern unsigned int GET32 ( unsigned int );
 extern void dummy ( unsigned int );
+
+volatile unsigned* gpio = (void*)GPIO_BASE;
+volatile unsigned* clk = (void*)CLOCK_BASE;
+volatile unsigned* pwm = (void*)PWM_BASE;
+
+void pause(int t) {
+    // Pause for about t ms
+    int i;
+    for (;t>0;t--) {
+        for (i=5000;i>0;i--) dummy(i);
+    }
+}
+
+
 #endif
