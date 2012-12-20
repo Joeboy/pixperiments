@@ -1,6 +1,7 @@
 #ifndef PI_HARDWARE_H
 #define PI_HARDWARE_H
 
+#include "dma.h"
 
 #define BCM2708_PERI_BASE 0x20000000
 #define GPIO_BASE         (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
@@ -12,6 +13,7 @@
 
 #define BCM2835_PWM_CONTROL 0
 #define BCM2835_PWM_STATUS  1
+#define BCM2835_PWM_DMAC    2
 #define BCM2835_PWM0_RANGE  4
 #define BCM2835_PWM0_DATA   5
 #define BCM2835_PWM_FIFO    6
@@ -20,6 +22,22 @@
 
 #define BCM2835_PWMCLK_CNTL   40
 #define BCM2835_PWMCLK_DIV    41
+
+#define BCM2835_PWMCLK_CNTL_OSCILLATOR 0x01
+#define BCM2835_PWMCLK_CNTL_PLLA 0x04
+#define BCM2835_PWMCLK_CNTL_KILL 1<<5
+#define BCM2835_PWMCLK_CNTL_ENABLE 1<<4
+
+#define PWMCTL_MODE1	(1<<1) // mode (0=pwm, 1=serializer)
+#define PWMCTL_PWEN1	(1<<0) // enable ch1
+#define PWMCTL_CLRF		(1<<6) // clear fifo
+#define PWMCTL_USEF1	(1<<5) // use fifo
+
+#define PWMDMAC_ENAB	(1<<31)
+// I think this means it requests as soon as there is one free slot in the FIFO
+// which is what we want as burst DMA would mess up our timing..
+//#define PWMDMAC_THRSHLD	((15<<8)|(15<<0))
+#define PWMDMAC_THRSHLD	((15<<8)|(15<<0))
 
 #define BCM2835_PWM1_MS_MODE    0x8000  /*  Run in MS mode                   */
 #define BCM2835_PWM1_USEFIFO    0x2000  /*  Data from FIFO                   */
@@ -61,12 +79,17 @@
 #define PM_RSTC_WRCFG_CLR           0xffffffcf
 #define PM_RSTC_WRCFG_FULL_RESET    0x00000020
 
+#define DMA_CONTROLLER_BASE 0x20007000
+#define DMA5_CNTL_BASE DMA_CONTROLLER_BASE + 0x500
+#define DMA_CNTL_CS          0x00
+#define DMA_CNTL_CONBLK_AD   0x04
+#define DMA_CNTL_DEBUG       0x20
+
 extern void PUT32 ( unsigned int, unsigned int );
 extern unsigned int GET32 ( unsigned int );
 extern void dummy ( unsigned int );
 
 volatile unsigned* gpio = (void*)GPIO_BASE;
-volatile unsigned* clk = (void*)CLOCK_BASE;
 volatile unsigned* pwm = (void*)PWM_BASE;
 
 void pause(int t) {

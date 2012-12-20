@@ -8,6 +8,7 @@
 #include "tune.c"
 
 
+int transpose = 0;
 
 #define NUM_VOICES 6
 
@@ -42,17 +43,50 @@ void note_on(unsigned int note_no, unsigned int off_time) {
     voices[best_voice].off_time = off_time;
 }
 
+
+void generate(unsigned int *buffer, unsigned int nsamples) {
+    static unsigned int t=0;
+    static volatile unsigned int note_iter = 0; // Without the volatile the assignment seems to get optimized out. Thanks, gcc.
+    float freq;
+    unsigned int i;
+    unsigned int v;
+    float out;
+    for (i=0;i<nsamples;i++) {
+//        printhex(t);
+        if (notes[note_iter].on_time == t) {
+            note_on(transpose + notes[note_iter].note_no, notes[note_iter].off_time);
+            note_iter++;
+            if (note_iter > 41) {
+                note_iter = 0;
+                t = 0;
+            }
+        }
+        out=0;
+        for (v=0;v<NUM_VOICES;v++) {
+            if (voices[v].time != -1) {
+                float volume = 10 - 3*((float)(voices[v].time & 0xfff) / 0xfff);
+                if (voices[v].time < 1000) volume = 1;
+                if (volume < 2) volume= 2;
+                freq = voices[v].freq;// * (.993 + .014 * (float)(!(t&0x4000)));
+                out += 2*volume * sin((256 * freq * 2 * t) / samplerate);
+                voices[v].time++;
+            }
+            if (voices[v].off_time == t) {
+                voices[v].time = -1;
+            }
+        }
+        buffer[i] = 256 + (int)(out);
+        t++;
+    }
+}
+
+
 int notmain ( unsigned int earlypc ) {
     uart_init();
     audio_init();
 
     unsigned int ra;
-    unsigned int note_iter = 0, bass_note_iter=0;
-    unsigned int t=0;
     unsigned int i;
-    int transpose = 0;
-    float out;
-    float freq, bass_freq=92.5;
     for (i=0;i<4;i++) voices[i].time = -1;
     pause(1);
     uart_print("\r\nPiTracker console\r\n");
@@ -86,45 +120,12 @@ int notmain ( unsigned int earlypc ) {
                     break;
             }
         }
-
-        if (!audio_fifo_unavailable()) {
-            // calculate and write the next value in our output wave
-            if (notes[note_iter].on_time == t) {
-                note_on(transpose + notes[note_iter].note_no, notes[note_iter].off_time);
-                note_iter++;
-                if (note_iter > 41) {
-                    note_iter = 0;
-                    t = 0;
-                    bass_note_iter++;
-                    if (bass_note_iter >3) bass_note_iter = 0;
-                    bass_freq = noteno2freq(transpose + bass_notes[bass_note_iter]);
-                }
-            }
-            out=0;
-            if (!transpose) {
-                float wobble = (float)(!(t&0x2000)) - 0.5;
-                out +=  15 * sin((256 * bass_freq*2 * t) / samplerate) * (1-wobble*.3);
-                out +=  20 * sin((256 * bass_freq * t) / samplerate) * (1-wobble*.3);
-                out +=  20 * sin((256 * bass_freq/2 * t) / samplerate) * (1+wobble*.3);
-                out +=  20 * sin((256 * bass_freq/4 * t) / samplerate) * (1+wobble*.2);
-                out +=  20 * sin((256 * bass_freq/8 * t) / samplerate);
-            }
-            for (i=0;i<NUM_VOICES;i++) {
-                if (voices[i].time != -1) {
-                    float volume = 10 - 3*((float)(voices[i].time & 0xfff) / 0xfff);
-                    if (voices[i].time < 1000) volume = 1;
-                    if (volume < 2) volume= 2;
-                    freq = voices[i].freq;// * (.993 + .014 * (float)(!(t&0x4000)));
-                    out += 2*volume * sin((256 * freq * 2 * t) / samplerate);
-                    voices[i].time++;
-                }
-                if (voices[i].off_time == t) {
-                    voices[i].time = -1;
-                }
-            }
-            *(pwm+BCM2835_PWM_FIFO) = 256 + (int)(out);
-            t++;
-        }
+        if (buffer_hungry()) {
+//            uart_print("feeding buffer\r\n");
+            generate(buf.buffer + buf.write_p, PROCESS_CHUNK_SZ);
+            buf.write_p += PROCESS_CHUNK_SZ;
+            if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;
+        }// else uart_putc('-');
     }
 }
 

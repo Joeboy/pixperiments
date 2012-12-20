@@ -1,3 +1,5 @@
+#ifndef MATH_H
+#define MATH_H
 
 /*
 float fmul(float a, float b) {
@@ -64,3 +66,4 @@ float sin(int x) {
     // 256 => 2 pi rads
     return sindata[x & 0xff];
 }
+#endif

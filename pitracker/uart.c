@@ -122,4 +122,17 @@ void dump_int(unsigned int v) {
     uart_putc(0x0D);
     uart_putc(0x0A);
 }
+
+void printhex(unsigned int v) {
+    static char digits[] = "0123456789abcdef";
+    unsigned int i;
+    uart_putc('0');
+    uart_putc('x');
+    for (i=0;i<8;i++) {
+        uart_putc(digits[(v & 0xf0000000) >> 28]);
+        v <<= 4;
+    }
+    uart_putc(0x0d);
+    uart_putc(0x0a);
+}
 #endif
