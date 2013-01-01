@@ -12,7 +12,6 @@ invaluable in getting started.
 
 Things to do:
 -------------
- * Buffering would probably help eliminate the unpleasant crackling.
  * Under linux, the pwm seems to be driven from a much faster clock ('plla')
    than the one I'm using, which would allow for much better quality audio. I
    can't work out how to make it work with plla though.
