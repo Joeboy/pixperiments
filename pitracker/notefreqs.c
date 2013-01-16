@@ -50,6 +50,6 @@ float notefreqs[] = {
 2093.00
 };
 
-float noteno2freq(unsigned int noteno) {
+float noteno2freq(uint32_t noteno) {
     return notefreqs[noteno]/2;
 }

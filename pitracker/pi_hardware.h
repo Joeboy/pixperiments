@@ -85,14 +85,14 @@
 #define DMA_CNTL_CONBLK_AD   0x04
 #define DMA_CNTL_DEBUG       0x20
 
-extern void PUT32 ( unsigned int, unsigned int );
-extern unsigned int GET32 ( unsigned int );
-extern void dummy ( unsigned int );
+extern void PUT32 (uint32_t,uint32_t);
+extern uint32_t GET32 (uint32_t);
+extern void dummy (uint32_t);
 
-volatile unsigned* gpio = (void*)GPIO_BASE;
-volatile unsigned* pwm = (void*)PWM_BASE;
+volatile uint32_t* gpio = (void*)GPIO_BASE;
+volatile uint32_t* pwm = (void*)PWM_BASE;
 
-void pause(int t) {
+void pause(uint32_t t) {
     // Pause for about t ms
     int i;
     for (;t>0;t--) {

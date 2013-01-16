@@ -1,3 +1,4 @@
+#include "stdint.h"
 #include "pi_hardware.h"
 #include "pi_audio.c"
 #include "reboot.c"
@@ -7,26 +8,28 @@
 #include "tune.c"
 
 
-int transpose = 0;
+int32_t transpose = 0;
 
-#define NUM_VOICES 6
+#define NUM_VOICES 4
 
 typedef struct {
     float freq;
-    int time;
-    unsigned int off_time;
+    int32_t time;
 } voice;
+
+#define NOTE_OFF                0x80
+#define NOTE_ON                 0x90
+
+uint8_t midi_buf[64];
 
 voice voices[NUM_VOICES];
 
-void note_on(unsigned int note_no, unsigned int off_time) {
+void note_on(uint32_t note_no) {
     // find a voice that's not on, or otherwise the voice that was
     // started longest ago
-    unsigned int i;
-    unsigned int best_voice = 0;
-    unsigned int best_voice_age = 0;
-//    hexstring(n.note_no);
-//    hexstring(n.on_time);
+    uint32_t i;
+    uint32_t best_voice = 0;
+    uint32_t best_voice_age = 0;
     for (i=1;i<NUM_VOICES;i++) {
         if (voices[i].time == -1) {
             best_voice = i;
@@ -39,54 +42,51 @@ void note_on(unsigned int note_no, unsigned int off_time) {
     }
     voices[best_voice].time = 0;
     voices[best_voice].freq = noteno2freq(note_no);
-    voices[best_voice].off_time = off_time;
 }
 
 
-void generate(unsigned int *buffer, unsigned int nsamples) {
-    static unsigned int t=0;
-    static volatile unsigned int note_iter = 0; // Without the volatile the assignment seems to get optimized out. Thanks, gcc.
+void generate(uint32_t *buffer, uint32_t nsamples) {
+    static uint32_t t=0;
     float freq;
-    unsigned int i;
-    unsigned int v;
+    uint32_t i;
+    uint32_t v;
     float out;
-    for (i=0;i<nsamples;i++) {
-//        printhex(t);
-        if (notes[note_iter].on_time == t) {
-            note_on(transpose + notes[note_iter].note_no, notes[note_iter].off_time);
-            note_iter++;
-            if (note_iter > 41) {
-                note_iter = 0;
-                t = 0;
-            }
+
+    uint32_t midi_buf_index;
+    for (midi_buf_index=0;midi_buf[midi_buf_index] != 0; midi_buf_index += 3) {
+        if ((midi_buf[midi_buf_index] & 0xf0) == NOTE_ON) {
+            note_on(midi_buf[midi_buf_index+1]);
         }
+    }
+
+    for (i=0;i<nsamples;i++) {
         out=0;
         for (v=0;v<NUM_VOICES;v++) {
             if (voices[v].time != -1) {
                 float volume = 10 - 3*((float)(voices[v].time & 0xfff) / 0xfff);
                 if (voices[v].time < 1000) volume = 1;
                 if (volume < 2) volume= 2;
-                freq = voices[v].freq;// * (.993 + .014 * (float)(!(t&0x4000)));
-                out += 2*volume * sin((256 * freq * 2 * t) / samplerate);
+                freq = voices[v].freq;
+                out += 2*volume * sin((256 * (uint32_t)freq * 2 * t) / (float)samplerate);
                 voices[v].time++;
             }
-            if (voices[v].off_time == t) {
-                voices[v].time = -1;
-            }
         }
-        buffer[i] = 256 + (int)(out);
+        buffer[i] = 256 + (int32_t)(2*out);
         t++;
     }
 }
 
 
-int notmain ( unsigned int earlypc ) {
+int32_t notmain (uint32_t earlypc) {
     uart_init();
     audio_init();
 
-    unsigned int ra;
-    unsigned int i;
-    for (i=0;i<4;i++) voices[i].time = -1;
+    uint32_t ra;
+    uint32_t i;
+    uint32_t note_index = 0;
+    uint32_t counter=0;
+    uint32_t midi_buf_index;
+    for (i=0;i<NUM_VOICES;i++) voices[i].time = -1;
     pause(1);
     uart_print("\r\nPiTracker console\r\n");
     while (1) {
@@ -121,10 +121,24 @@ int notmain ( unsigned int earlypc ) {
         }
         if (buffer_hungry()) {
 //            uart_print("feeding buffer\r\n");
+            midi_buf_index = 0;
+            while (notes[note_index].on_time == counter) {
+                midi_buf[midi_buf_index] = NOTE_ON | 0; // channel
+                midi_buf_index++;
+                midi_buf[midi_buf_index] = notes[note_index].note_no;
+                midi_buf_index++;
+                midi_buf[midi_buf_index] = 64; // velocity
+                midi_buf_index++;
+                note_index++;
+                if (note_index > 41) note_index=counter=0;
+            }
+
+            midi_buf[midi_buf_index] = 0;
             generate(buf.buffer + buf.write_p, PROCESS_CHUNK_SZ);
             buf.write_p += PROCESS_CHUNK_SZ;
             if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;
-        }// else uart_putc('-');
+            counter++;
+        }
     }
 }
 

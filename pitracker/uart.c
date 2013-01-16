@@ -1,9 +1,9 @@
 #ifndef UART_H
 #define UART_H
 
-extern void PUT32 ( unsigned int, unsigned int );
-extern unsigned int GET32 ( unsigned int );
-extern void dummy ( unsigned int );
+extern void PUT32 (uint32_t, uint32_t);
+extern uint32_t GET32 (uint32_t);
+extern void dummy (uint32_t);
 
 #define AUX_ENABLES     0x20215004
 #define AUX_MU_IO_REG   0x20215040
@@ -31,7 +31,7 @@ void uart_init() {
     //alt function 0 for uart0
 
     //((250,000,000/115200)/8)-1 = 270
-    unsigned int ra;
+    uint32_t ra;
     PUT32(AUX_ENABLES,1);
     PUT32(AUX_MU_IER_REG,0);
     PUT32(AUX_MU_CNTL_REG,0);
@@ -57,23 +57,22 @@ void uart_init() {
     PUT32(AUX_MU_CNTL_REG,3);
 }
 
-unsigned int uart_recv ( void )
-{
-    while(1)
-    {
+
+uint32_t uart_recv () {
+    while(1) {
         if(GET32(AUX_MU_LSR_REG)&0x01) break;
     }
     return GET32(AUX_MU_IO_REG);
 }
 
-void uart_putc ( unsigned int c )
-{
-    while(1)
-    {
+
+void uart_putc (uint32_t c) {
+    while(1) {
         if(GET32(AUX_MU_LSR_REG)&0x20) break;
     }
     PUT32(AUX_MU_IO_REG,c);
 }
+
 
 void uart_print(char* s) {
     char c;
@@ -85,16 +84,13 @@ void uart_print(char* s) {
     }
 }
 
-//------------------------------------------------------------------------
-void hexstrings ( unsigned int d )
-{
-    //unsigned int ra;
-    unsigned int rb;
-    unsigned int rc;
+
+void hexstrings (uint32_t d) {
+    uint32_t rb;
+    uint32_t rc;
 
     rb=32;
-    while(1)
-    {
+    while(1) {
         rb-=4;
         rc=(d>>rb)&0xF;
         if(rc>9) rc+=0x37; else rc+=0x30;
@@ -103,18 +99,19 @@ void hexstrings ( unsigned int d )
     }
     uart_putc(0x20);
 }
-//------------------------------------------------------------------------
-void hexstring ( unsigned int d )
-{
+
+
+void hexstring (uint32_t d) {
     uart_print("hs:");
     hexstrings(d);
     uart_putc(0x0D);
     uart_putc(0x0A);
 }
 
-void dump_int(unsigned int v) {
+
+void dump_int(uint32_t v) {
     // Dump a binary representation of an unsigned int
-    unsigned int j;
+    uint32_t j;
     for (j=0;j<32;j++) {
         uart_putc('0'+ !!(v & 1<<31));
         v <<= 1;
@@ -123,9 +120,10 @@ void dump_int(unsigned int v) {
     uart_putc(0x0A);
 }
 
-void printhex(unsigned int v) {
+
+void printhex(uint32_t v) {
     static char digits[] = "0123456789abcdef";
-    unsigned int i;
+    uint32_t i;
     uart_putc('0');
     uart_putc('x');
     for (i=0;i<8;i++) {
