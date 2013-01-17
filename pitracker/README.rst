@@ -8,7 +8,7 @@ baremetal audio code with source for the pi so hopefully it'll help somebody
 else get started with bigger and better things.
 
 Many thanks to dwelch for https://github.com/dwelch67/raspberrypi , which was
-invaluable in getting started.
+invaluable in getting started, and to Remo Dentato for his midi file code.
 
 Things to do:
 -------------

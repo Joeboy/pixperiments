@@ -62,8 +62,8 @@ static long readnum(int k)
 */
 
 
-static unsigned char *chrbuf=NULL;
-static long  chrbuf_sz=0;
+//static unsigned char *chrbuf=NULL;
+//static long  chrbuf_sz=0;
 
 //static char *chrbuf_set(long sz)
 //{
@@ -77,7 +77,7 @@ static long  chrbuf_sz=0;
 static char *readmsg(long n)
 {
   int   c;
-  char *s;
+//  char *s;
 
   if (n == 0) return "";
 
