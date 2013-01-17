@@ -11,6 +11,10 @@ clean :
 	rm -f *.bin
 	rm -f *.elf
 	rm -f kernel.img
+	rm -f tune.o
+
+tune.o : tune.mid
+	arm-none-eabi-ld -s -r -o tune.o -b binary tune.mid
 
 vectors.o : vectors.s
 	$(ARMGNU)-as $(AOPS) -mfpu=vfp vectors.s -o vectors.o
@@ -18,8 +22,8 @@ vectors.o : vectors.s
 pitracker.o : pitracker.c
 	$(ARMGNU)-gcc $(COPS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors.o pitracker.o 
-	$(ARMGNU)-ld vectors.o pitracker.o -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors.o pitracker.o  tune.o
+	$(ARMGNU)-ld tune.o vectors.o pitracker.o -T memmap -o pitracker.elf
 
 kernel.img : pitracker.elf
 	$(ARMGNU)-objcopy pitracker.elf -O binary kernel.img

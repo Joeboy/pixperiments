@@ -6,10 +6,9 @@
     BCM2835_RERR1 | BCM2835_WERR1)
 
 #define AUDIO_BUFFER_SZ 128
-#define PROCESS_CHUNK_SZ 64
+#define PROCESS_CHUNK_SZ 32
 uint32_t samplerate;
 uint32_t audio_buffer[AUDIO_BUFFER_SZ];
-uint32_t process_buffer[PROCESS_CHUNK_SZ];
 
 struct bcm2708_dma_cb __attribute__((aligned(32))) cb_chain[AUDIO_BUFFER_SZ]; // dma control blocks have to be aligned to 128 bit boundary
 
