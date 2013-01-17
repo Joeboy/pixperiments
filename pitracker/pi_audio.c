@@ -28,7 +28,7 @@ void ringbuffer_init() {
     }
 }
 
-int32_t buffer_hungry() {
+int32_t audio_buffer_hungry() {
     buf.read_p = (struct bcm2708_dma_cb*)GET32(DMA5_CNTL_BASE + DMA_CNTL_CONBLK_AD) - cb_chain;
     uint32_t spare;
     if (buf.read_p >= buf.write_p) {
@@ -37,6 +37,15 @@ int32_t buffer_hungry() {
         spare = AUDIO_BUFFER_SZ - (buf.write_p - buf.read_p);
     }
     return (spare >= PROCESS_CHUNK_SZ);
+}
+
+void feed_audio_buffer(float*chunk, uint32_t chunk_sz) {
+    uint32_t i;
+    for (i=0;i<chunk_sz;i++) {
+        buf.buffer[buf.write_p + i] = (uint32_t)(256+192*chunk[i]);
+    }
+    buf.write_p += chunk_sz;
+    if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;
 }
 
 

@@ -1,11 +1,17 @@
 #include "midi.h"
 
-#define NUM_VOICES 6
+#define NUM_VOICES 5
+#define VOICE_CLAMPER  (float)1/NUM_VOICES
+
+enum voice_state {on, released, off};
 
 typedef struct {
+    enum voice_state state;
     uint32_t note_no;
     float freq;
-    int32_t time;
+    float env;
+    uint32_t time;
+    uint32_t released_time;
 } voice;
 
 
@@ -18,7 +24,7 @@ void note_on(uint32_t note_no) {
     uint32_t best_voice = 0;
     uint32_t best_voice_age = 0;
     for (i=1;i<NUM_VOICES;i++) {
-        if (voices[i].time == -1) {
+        if (voices[i].state == off) {
             best_voice = i;
             break;
         }
@@ -27,6 +33,7 @@ void note_on(uint32_t note_no) {
             best_voice = i;
         }
     }
+    voices[best_voice].state = on;
     voices[best_voice].time = 0;
     voices[best_voice].note_no = note_no;
     voices[best_voice].freq = noteno2freq(note_no);
@@ -36,15 +43,40 @@ void note_off(uint32_t note_no) {
     uint32_t i;
     for (i=0;i<NUM_VOICES;i++) {
         if (voices[i].note_no == note_no) {
-            voices[i].time = -1;
+            voices[i].state = released;
+            voices[i].released_time = 0;
         }
     }
 }
 
+float envelope(voice *vp) {
+    float env;
+    uint32_t attack_time = 250;
+    float attack = 0.9;
+    uint32_t decay_time = 10000;
+    float sustain = 0.2;
+    uint32_t release_time = 10000;
+    voice v = *vp;
 
-void generate(uint8_t *midi_buf, uint32_t *buffer, uint32_t nsamples) {
-    static uint32_t t=0;
-    float freq;
+    if (v.state == on) {
+        if (v.time < attack_time) env = attack*((float)(v.time) / attack_time);
+        else if (v.time < (attack_time + decay_time)) env = (float)attack - (float)(attack - sustain) * (float)(((float)v.time - attack_time) / (float)decay_time);
+        else env = sustain;
+        (*vp).env = env;
+    } else if (v.state == released) {
+        if (v.released_time > release_time) {
+            v.state = off;
+            env = 0;
+        } else {
+            // Ramp down from whatever the last envelope value was (not necessarily the sustain value)
+            env = (float)v.env - (float)v.env*(float)((float)v.released_time / (float)release_time);
+        }
+    } else env = 0; // should never happen
+    return env;
+}
+
+void synth_run(uint8_t *midi_buf, float *buffer, uint32_t nsamples) {
+    static uint32_t t=1; // 0 gets optimized out
     uint32_t i;
     uint32_t v;
     float out;
@@ -66,16 +98,19 @@ void generate(uint8_t *midi_buf, uint32_t *buffer, uint32_t nsamples) {
     for (i=0;i<nsamples;i++) {
         out=0;
         for (v=0;v<NUM_VOICES;v++) {
-            if (voices[v].time != -1) {
-                float volume = 10 - 2*((float)(voices[v].time & 0xfff) / 0xfff);
-                if (voices[v].time < 1000) volume = 1;
-                if (volume < 2) volume= 2;
-                freq = voices[v].freq;
-                out += 2*volume * sin((256 * (uint32_t)freq * 2 * t) / (float)samplerate);
-                voices[v].time++;
-            }
+            if (voices[v].state == off) continue;
+            out += VOICE_CLAMPER * envelope(&(voices[v])) * sin((256 * (uint32_t)voices[v].freq * 2 * voices[v].time) / (float)samplerate);
+
+            voices[v].time++;
+            if (voices[v].state == released) voices[v].released_time++;
         }
-        buffer[i] = 256 + (int32_t)(2*out);
+        buffer[i] = out;
         t++;
     }
+}
+
+
+void synth_init() {
+    uint32_t i;
+    for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
 }

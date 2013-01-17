@@ -46,14 +46,14 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
     switch(command) {
         case 0x90:
             e.time = (uint32_t)track_time;
-            e.note_no = v1-36;
+            e.note_no = v1-40;
             e.type = noteon;
             events[event_index] = e;
             event_index++;
             break;
         case 0x80:
             e.time = (uint32_t)track_time;
-            e.note_no = v1-36;
+            e.note_no = v1-40;
             e.type = noteoff;
             events[event_index] = e;
             event_index++;
@@ -71,15 +71,15 @@ int32_t transpose = 0;
 int32_t notmain (uint32_t earlypc) {
     uart_init();
     audio_init();
+    synth_init();
 
     fp=0;
     uint32_t ra;
-    uint32_t i;
     uint32_t counter=0;
     uint32_t midi_buf_index;
     uint8_t midi_buf[64];
+    float process_buf[PROCESS_CHUNK_SZ];
 
-    for (i=0;i<NUM_VOICES;i++) voices[i].time = -1;
     pause(1);
     uart_print("\r\nPiTracker console\r\n");
 
@@ -118,7 +118,7 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
-        if (buffer_hungry()) {
+        if (audio_buffer_hungry()) {
 //            uart_print("feeding buffer\r\n");
             midi_buf_index = 0;
             while (events[event_index].time == counter) {
@@ -137,9 +137,8 @@ int32_t notmain (uint32_t earlypc) {
             }
 
             midi_buf[midi_buf_index] = 0;
-            generate(midi_buf, buf.buffer + buf.write_p, PROCESS_CHUNK_SZ);
-            buf.write_p += PROCESS_CHUNK_SZ;
-            if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;
+            synth_run(midi_buf, process_buf, PROCESS_CHUNK_SZ);
+            feed_audio_buffer(process_buf, PROCESS_CHUNK_SZ);
             counter++;
         }
     }
