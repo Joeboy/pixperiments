@@ -164,7 +164,7 @@ static int scan_midi()
     if (tracklen < 0) FAIL(121);
     track_time = 0;
     status = 0;
-    ERROR = 0;//h_track(0, curtrack, tracklen);
+    ERROR = h_track(0, curtrack, tracklen);
     if (ERROR) FAIL(ERROR);
   }
 

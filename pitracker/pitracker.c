@@ -12,9 +12,8 @@
 
 
 #define PROCESS_CHUNK_SZ 32
-#define EVENTLIST_SIZE 1024
 
-event events[EVENTLIST_SIZE];
+event* events;
 
 
 // Hack around our (hopefully temporary) lack of file IO
@@ -40,11 +39,14 @@ int h_error(unsigned int code, char* message) {
 
 uint32_t event_index = 0;
 
+int h_track(int dummy, uint32_t trackno, uint32_t length) {
+    events = malloc(sizeof(event) * length);
+    return 0;
+}
 
 int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsigned int v1, unsigned int v2) {
 //    printf("status_lsb: %x\n", command);
     event e;
-    if (event_index >= EVENTLIST_SIZE) return 0; // ignore events that don't fit in the buffer
     switch(command) {
         case 0x90:
             e.time = (uint32_t)track_time;
@@ -131,7 +133,6 @@ int32_t notmain (uint32_t earlypc) {
                 midi_buf[midi_buf_index] = 64; // velocity
                 midi_buf_index++;
                 event_index++;
-                if (event_index >= EVENTLIST_SIZE) event_index=counter=0;
             }
 
             midi_buf[midi_buf_index] = 0;
