@@ -5,7 +5,7 @@
 #define MALLOC_H
 
 #include <stdint.h>
-#include "pi_hardware.h"
+#include <pi/hardware.h>
 
 unsigned int heap_end;
 

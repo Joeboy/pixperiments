@@ -1,7 +1,7 @@
 #ifndef PI_HARDWARE_H
 #define PI_HARDWARE_H
 
-#include "dma.h"
+#include <pi/dma.h>
 
 #define BCM2708_PERI_BASE 0x20000000
 #define GPIO_BASE         (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */

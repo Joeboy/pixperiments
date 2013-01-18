@@ -1,4 +1,4 @@
-#include "pi_hardware.h"
+#include <pi/hardware.h>
 
 extern void PUT32 (uint32_t,uint32_t);
 extern uint32_t GET32 (uint32_t);

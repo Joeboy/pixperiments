@@ -1,6 +1,6 @@
 ARMGNU ?= arm-none-eabi
 
-COPS = -Wall -O2 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
+COPS = -I./includes -Wall -O2 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
 AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -march=armv6
 
 

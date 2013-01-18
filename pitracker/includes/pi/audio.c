@@ -1,6 +1,6 @@
-#include "pi_hardware.h"
-#include "math.c"
-#include "uart.c"
+#include <pi/hardware.h>
+#include <pi/uart.c>
+#include <math.c>
 
 #define ERRORMASK (BCM2835_GAPO2 | BCM2835_GAPO1 | \
     BCM2835_RERR1 | BCM2835_WERR1)

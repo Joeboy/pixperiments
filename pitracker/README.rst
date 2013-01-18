@@ -22,4 +22,6 @@ Things to do:
  * Play MIDI files from the SD card, rather than linking them into the kernel.
  * Implement LV2 plugins via dynamic linkage, so you can just drop a plugin
    onto the SD.
+ * Implement reading files from the SD card, so that the previous two things
+   become possible.
  * Port to other platforms, eg. TI Stellaris

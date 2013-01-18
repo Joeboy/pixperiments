@@ -51,5 +51,6 @@ float notefreqs[] = {
 };
 
 float noteno2freq(uint32_t noteno) {
+    if (noteno > 48) return 440;
     return notefreqs[noteno]/2;
 }

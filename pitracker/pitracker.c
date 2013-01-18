@@ -1,11 +1,11 @@
 #include <stdint.h>
 #include <stddef.h>
-#include "malloc.h"
-#include "pi_hardware.h"
-#include "pi_audio.c"
-#include "reboot.c"
-#include "uart.c"
-#include "math.c"
+#include <malloc.h>
+#include <pi/hardware.h>
+#include <pi/audio.c>
+#include <pi/reboot.c>
+#include <pi/uart.c>
+#include <math.c>
 #include "notefreqs.c"
 #include "synth.c"
 #include "midi.h"
