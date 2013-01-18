@@ -66,7 +66,6 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 #include "mf_read.c"
 
 
-int32_t transpose = 0;
 
 int32_t notmain (uint32_t earlypc) {
     uart_init();
@@ -97,18 +96,6 @@ int32_t notmain (uint32_t earlypc) {
                     uart_print("Rebooting\r\n");
                     pause(2);
                     reboot();
-                    break;
-                case 0x61:
-                    if (transpose < 2) {
-                        transpose++;
-                        uart_print("transposing up\r\n");
-                    }
-                    break;
-                case 0x7a:
-                    if (transpose > -10) {
-                        transpose--;
-                        uart_print("transposing down\r\n");
-                    }
                     break;
                 case 0x0d:
                     uart_print("\r\n");

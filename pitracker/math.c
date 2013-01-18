@@ -66,4 +66,12 @@ float sin(int x) {
     // 256 => 2 pi rads
     return sindata[x & 0xff];
 }
+
+float square(int x) {
+    return !!(x & 0x80);
+}
+
+float sawtooth(int x) {
+    return (float)(x & 0xff) / 256;
+}
 #endif

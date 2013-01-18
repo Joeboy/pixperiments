@@ -1,6 +1,6 @@
 #include "midi.h"
 
-#define NUM_VOICES 5
+#define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
 
 enum voice_state {on, released, off};
@@ -53,7 +53,7 @@ float envelope(voice *vp) {
     float env;
     uint32_t attack_time = 250;
     float attack = 0.9;
-    uint32_t decay_time = 10000;
+    uint32_t decay_time = 5000;
     float sustain = 0.2;
     uint32_t release_time = 10000;
     voice v = *vp;
@@ -73,6 +73,22 @@ float envelope(voice *vp) {
         }
     } else env = 0; // should never happen
     return env;
+}
+
+float waveform(voice v) {
+    uint32_t tremolo_period = 6000;
+    static uint8_t direction=1;
+    static uint32_t x=1;
+    float s1 = sin((256 * (uint32_t)v.freq * 2 * v.time) / (float)samplerate);
+    s1 *= (float)1-0.95*(float)x/tremolo_period;
+    x += (direction ? 1 : -1);
+    if (x == 0 || x > tremolo_period) direction = !direction;
+    float s2 = square((256 * (uint32_t)v.freq * 2 * v.time) / (float)samplerate);
+    uint32_t p1 = 10000;
+    if (v.time < p1) {
+        return s1 + 0.07 * s2 * (1 - ((float)v.time / p1));
+    }
+    return s1;
 }
 
 void synth_run(uint8_t *midi_buf, float *buffer, uint32_t nsamples) {
@@ -99,7 +115,7 @@ void synth_run(uint8_t *midi_buf, float *buffer, uint32_t nsamples) {
         out=0;
         for (v=0;v<NUM_VOICES;v++) {
             if (voices[v].state == off) continue;
-            out += VOICE_CLAMPER * envelope(&(voices[v])) * sin((256 * (uint32_t)voices[v].freq * 2 * voices[v].time) / (float)samplerate);
+            out += VOICE_CLAMPER * envelope(&(voices[v])) * waveform(voices[v]);
 
             voices[v].time++;
             if (voices[v].state == released) voices[v].released_time++;
