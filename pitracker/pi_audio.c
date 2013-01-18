@@ -6,9 +6,7 @@
     BCM2835_RERR1 | BCM2835_WERR1)
 
 #define AUDIO_BUFFER_SZ 128
-#define PROCESS_CHUNK_SZ 32
 uint32_t samplerate;
-uint32_t audio_buffer[AUDIO_BUFFER_SZ];
 
 struct bcm2708_dma_cb __attribute__((aligned(32))) cb_chain[AUDIO_BUFFER_SZ]; // dma control blocks have to be aligned to 128 bit boundary
 
@@ -28,7 +26,7 @@ void ringbuffer_init() {
     }
 }
 
-int32_t audio_buffer_hungry() {
+int32_t audio_buffer_free_space() {
     buf.read_p = (struct bcm2708_dma_cb*)GET32(DMA5_CNTL_BASE + DMA_CNTL_CONBLK_AD) - cb_chain;
     uint32_t spare;
     if (buf.read_p >= buf.write_p) {
@@ -36,10 +34,10 @@ int32_t audio_buffer_hungry() {
     } else {
         spare = AUDIO_BUFFER_SZ - (buf.write_p - buf.read_p);
     }
-    return (spare >= PROCESS_CHUNK_SZ);
+    return spare;
 }
 
-void feed_audio_buffer(float*chunk, uint32_t chunk_sz) {
+void audio_buffer_write(float*chunk, uint32_t chunk_sz) {
     uint32_t i;
     for (i=0;i<chunk_sz;i++) {
         buf.buffer[buf.write_p + i] = (uint32_t)(256+192*chunk[i]);

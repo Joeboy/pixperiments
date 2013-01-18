@@ -1,7 +1,13 @@
+#include "lv2.h"
 #include "midi.h"
 
 #define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
+
+#define MIDI_IN 0
+#define AUDIO_OUT 1
+
+static LV2_Descriptor *synthDescriptor = NULL;
 
 enum voice_state {on, released, off};
 
@@ -16,6 +22,43 @@ typedef struct {
 
 
 voice voices[NUM_VOICES];
+
+typedef struct {
+    double sample_rate;
+    uint8_t* midi_in;
+    float *audio_out;
+} Plugin;
+
+
+static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
+        double s_rate, const char *path, const LV2_Feature * const* features) {
+
+    Plugin *plugin = (Plugin *)malloc(sizeof(Plugin));
+    uint32_t i;
+    for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
+    plugin->sample_rate = s_rate;
+
+    return (LV2_Handle)plugin;
+}
+
+static void cleanup(LV2_Handle instance) {
+    free(instance);
+}
+
+static void connect_port(LV2_Handle instance, uint32_t port, void *data) {
+    Plugin *plugin = (Plugin *)instance;
+
+    switch (port) {
+    case MIDI_IN:
+        plugin->midi_in = data;
+        break;
+    case AUDIO_OUT:
+        plugin->audio_out = data;
+        break;
+    }
+}
+
+
 
 void note_on(uint32_t note_no) {
     // find a voice that's not on, or otherwise the voice that was
@@ -91,27 +134,29 @@ float waveform(voice v) {
     return s1;
 }
 
-void synth_run(uint8_t *midi_buf, float *buffer, uint32_t nsamples) {
+static void run(LV2_Handle instance, uint32_t sample_count) {
     static uint32_t t=1; // 0 gets optimized out
     uint32_t i;
     uint32_t v;
     float out;
 
+    Plugin *plugin = (Plugin *)instance;
+    
     uint32_t midi_buf_index;
-    for (midi_buf_index=0;midi_buf[midi_buf_index] != 0; midi_buf_index += 3) {
-        switch (midi_buf[midi_buf_index] & 0xf0) {
+    for (midi_buf_index=0;plugin->midi_in[midi_buf_index] != 0; midi_buf_index += 3) {
+        switch (plugin->midi_in[midi_buf_index] & 0xf0) {
             case NOTE_ON:
-                note_on(midi_buf[midi_buf_index+1]);
+                note_on(plugin->midi_in[midi_buf_index+1]);
                 break;
             case NOTE_OFF:
-                note_off(midi_buf[midi_buf_index+1]);
+                note_off(plugin->midi_in[midi_buf_index+1]);
                 break;
             default:
                 break;
         }
     }
 
-    for (i=0;i<nsamples;i++) {
+    for (i=0;i<sample_count;i++) {
         out=0;
         for (v=0;v<NUM_VOICES;v++) {
             if (voices[v].state == off) continue;
@@ -120,13 +165,29 @@ void synth_run(uint8_t *midi_buf, float *buffer, uint32_t nsamples) {
             voices[v].time++;
             if (voices[v].state == released) voices[v].released_time++;
         }
-        buffer[i] = out;
+        plugin->audio_out[i] = out;
         t++;
     }
 }
 
 
-void synth_init() {
-    uint32_t i;
-    for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
+LV2_SYMBOL_EXPORT
+const LV2_Descriptor *lv2_descriptor(uint32_t index)
+{
+    if (!synthDescriptor) {
+        synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
+
+        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/synth";
+        synthDescriptor->activate = NULL;
+        synthDescriptor->cleanup = cleanup;
+        synthDescriptor->connect_port = connect_port;
+        synthDescriptor->deactivate = NULL;
+        synthDescriptor->instantiate = instantiate;
+        synthDescriptor->run = run;
+        synthDescriptor->extension_data = NULL;
+    }
+
+    if (index == 0) return synthDescriptor;
+    return NULL;
 }
+

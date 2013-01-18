@@ -1,4 +1,6 @@
-#include "stdint.h"
+#include <stdint.h>
+#include <stddef.h>
+#include "malloc.h"
 #include "pi_hardware.h"
 #include "pi_audio.c"
 #include "reboot.c"
@@ -9,6 +11,7 @@
 #include "midi.h"
 
 
+#define PROCESS_CHUNK_SZ 32
 #define EVENTLIST_SIZE 1024
 
 event events[EVENTLIST_SIZE];
@@ -18,8 +21,7 @@ event events[EVENTLIST_SIZE];
 extern uint8_t _binary_tune_mid_start;
 extern uint8_t _binary_tune_mid_size;
 
-#define NULL 0
-#define EOF 999
+#define EOF -1
 uint32_t fp = 0;
 
 int fgetc(uint8_t *dummy) {
@@ -70,17 +72,24 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 int32_t notmain (uint32_t earlypc) {
     uart_init();
     audio_init();
-    synth_init();
 
     fp=0;
     uint32_t ra;
     uint32_t counter=0;
     uint32_t midi_buf_index;
-    uint8_t midi_buf[64];
-    float process_buf[PROCESS_CHUNK_SZ];
+    uint8_t *midi_buf = malloc(sizeof(uint8_t) * 64);
+    float *process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
 
     pause(1);
     uart_print("\r\nPiTracker console\r\n");
+    synthDescriptor = NULL; // annoying workaround for gcc optimization
+
+    const LV2_Descriptor *synthdescriptor = lv2_descriptor(0);
+    LV2_Handle synth = synthdescriptor->instantiate(
+                                             synthdescriptor,
+                                             samplerate,
+                                             NULL,
+                                             NULL);
 
     event_index = 0;
     scan_midi();
@@ -105,7 +114,9 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
-        if (audio_buffer_hungry()) {
+        synthdescriptor->connect_port(synth, MIDI_IN, midi_buf);
+        synthdescriptor->connect_port(synth, AUDIO_OUT, process_buf);
+        if (audio_buffer_free_space() >= PROCESS_CHUNK_SZ) {
 //            uart_print("feeding buffer\r\n");
             midi_buf_index = 0;
             while (events[event_index].time == counter) {
@@ -124,8 +135,8 @@ int32_t notmain (uint32_t earlypc) {
             }
 
             midi_buf[midi_buf_index] = 0;
-            synth_run(midi_buf, process_buf, PROCESS_CHUNK_SZ);
-            feed_audio_buffer(process_buf, PROCESS_CHUNK_SZ);
+            synthdescriptor->run(synth, PROCESS_CHUNK_SZ);
+            audio_buffer_write(process_buf, PROCESS_CHUNK_SZ);
             counter++;
         }
     }
