@@ -8,6 +8,8 @@ _start:
     mov r0,#0x40000000
     fmxr fpexc,r0
 
+    bl setup_heap
+
     mov sp,#0x8000
     bl notmain
 hang: b hang

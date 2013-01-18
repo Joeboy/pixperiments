@@ -7,8 +7,13 @@
 #include <stdint.h>
 #include "pi_hardware.h"
 
-unsigned int heap_end=0x0020000;
-unsigned int prev_heap_end;
+unsigned int heap_end;
+
+void setup_heap() {
+    // called by _start
+    heap_end = 0x20000;
+}
+
 
 // TODO:
 struct mem_control_block {
@@ -17,9 +22,8 @@ struct mem_control_block {
 };
 
 void* malloc(size_t size) {
-    prev_heap_end = heap_end;
+    unsigned int prev_heap_end = heap_end;
     heap_end += size;
-    pause (5);
     return (void*)prev_heap_end;
 }
 

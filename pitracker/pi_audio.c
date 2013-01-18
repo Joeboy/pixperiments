@@ -8,16 +8,17 @@
 #define AUDIO_BUFFER_SZ 128
 uint32_t samplerate;
 
-struct bcm2708_dma_cb __attribute__((aligned(32))) cb_chain[AUDIO_BUFFER_SZ]; // dma control blocks have to be aligned to 128 bit boundary
+static struct bcm2708_dma_cb* cb_chain;
 
 typedef struct {
-    uint32_t buffer[AUDIO_BUFFER_SZ];
+    uint32_t *buffer;
     uint32_t read_p, write_p;
 } ringbuffer;
 
 ringbuffer buf;
 
 void ringbuffer_init() {
+    buf.buffer = malloc(sizeof(uint32_t) * AUDIO_BUFFER_SZ);
     buf.read_p = 0;
     buf.write_p = 0;
     uint32_t i;
@@ -78,6 +79,11 @@ void audio_init(void) {
     PUT32(PWM_BASE + 4*BCM2835_PWM0_RANGE, range);
     PUT32(PWM_BASE + 4*BCM2835_PWM1_RANGE, range);
     pause(1);
+
+    // Ensure buffer is 32-byte aligned
+    void* cb_container = malloc(0x20 + sizeof(struct bcm2708_dma_cb) * AUDIO_BUFFER_SZ);
+    uint32_t offset = (uint32_t)cb_container & 0x1f;
+    cb_chain = cb_container + 0x20 - offset;
 
     uint32_t i;
     for (i=0;i<AUDIO_BUFFER_SZ;i++) {
