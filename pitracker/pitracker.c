@@ -1,14 +1,18 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <malloc.h>
-#include <pi/hardware.h>
+#include <lv2/lv2plug.in/ns/ext/atom/forge.h>
+#include "lv2/lv2plug.in/ns/ext/midi/midi.h"
+
 #include <pi/audio.c>
 #include <pi/reboot.c>
 #include <pi/uart.c>
+
 #include <math.c>
 #include "notefreqs.c"
 #include "synth.c"
 #include "midi.h"
+#include "lv2.c"
 
 
 #define PROCESS_CHUNK_SZ 32
@@ -30,10 +34,10 @@ int fgetc(uint8_t *dummy) {
 }
 
 int h_error(unsigned int code, char* message) {
-    uart_print("Error: ");
-    printhex(code);
-    uart_print(message);
-    uart_print("\r\n");
+    printf("Error: ");
+    dump_int_hex(code);
+    printf(message);
+    printf("\r\n");
     return 0;
 }
 
@@ -70,21 +74,23 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 #include "mf_read.c"
 
 
-
 int32_t notmain (uint32_t earlypc) {
+   // annoying workaround for gcc optimization
+    synthDescriptor = NULL;
+
     uart_init();
     audio_init();
+    lv2_init();
 
     fp=0;
     uint32_t ra;
     uint32_t counter=0;
-    uint32_t midi_buf_index;
-    uint8_t *midi_buf = malloc(sizeof(uint8_t) * 64);
     float *process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
+    uint8_t midi_ev[3];
 
     pause(1);
-    uart_print("\r\nPiTracker console\r\n");
-    synthDescriptor = NULL; // annoying workaround for gcc optimization
+    printf("\r\nPiTracker console\r\n");
+    LV2_URID midi_midiEvent = lv2_urid_map->map(NULL, LV2_MIDI__MidiEvent);
 
     const LV2_Descriptor *synthdescriptor = lv2_descriptor(0);
     LV2_Handle synth = synthdescriptor->instantiate(
@@ -98,44 +104,55 @@ int32_t notmain (uint32_t earlypc) {
     // reuse event_index for reading the buffer we've just written
     event_index = 0;
 
+    synthdescriptor->connect_port(synth, MIDI_IN, &atom_buffer);
+    synthdescriptor->connect_port(synth, AUDIO_OUT, process_buf);
+
     while (1) {
         if(GET32(AUX_MU_LSR_REG)&0x01) {
             ra = GET32(AUX_MU_IO_REG);
 //            hexstring(ra);
             switch(ra) {
                 case 0x03:
-                    uart_print("Rebooting\r\n");
+                    printf("Rebooting\r\n");
                     pause(2);
                     reboot();
                     break;
                 case 0x0d:
-                    uart_print("\r\n");
+                    printf("\r\n");
                     break;
                 default:
                     uart_putc(ra);
                     break;
             }
         }
-        synthdescriptor->connect_port(synth, MIDI_IN, midi_buf);
-        synthdescriptor->connect_port(synth, AUDIO_OUT, process_buf);
         if (audio_buffer_free_space() >= PROCESS_CHUNK_SZ) {
-//            uart_print("feeding buffer\r\n");
-            midi_buf_index = 0;
+//            printf("feeding buffer\r\n");
+            forge.offset = 0;
+            LV2_Atom_Forge_Frame midi_seq_frame;
+            uint8_t channel = 0;
+            uint8_t frame_time = 1; // TODO
+
+            lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
             while (events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
-                    midi_buf[midi_buf_index] = NOTE_ON | 0; // channel
+                    lv2_atom_forge_frame_time(&forge, frame_time++);
+                    midi_ev[0] = NOTE_ON | channel;
+                    midi_ev[1] = events[event_index].note_no;
+                    midi_ev[2] = 0x50; // velocity
+                    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
+                    lv2_atom_forge_write(&forge, &midi_ev, 3);
                 } else if (events[event_index].type == noteoff) {
-                    midi_buf[midi_buf_index] = NOTE_OFF | 0; // channel
+                    midi_ev[0] = NOTE_OFF | channel;
+                    midi_ev[1] = events[event_index].note_no;
+                    midi_ev[2] = 0x1;
+                    lv2_atom_forge_frame_time(&forge, frame_time++);
+                    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
+                    lv2_atom_forge_write(&forge, &midi_ev, 3);
                 }
-                midi_buf_index++;
-                midi_buf[midi_buf_index] = events[event_index].note_no;
-                midi_buf_index++;
-                midi_buf[midi_buf_index] = 64; // velocity
-                midi_buf_index++;
                 event_index++;
             }
-
-            midi_buf[midi_buf_index] = 0;
+            lv2_atom_forge_pop(&forge, &midi_seq_frame);
+            
             synthdescriptor->run(synth, PROCESS_CHUNK_SZ);
             audio_buffer_write(process_buf, PROCESS_CHUNK_SZ);
             counter++;

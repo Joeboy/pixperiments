@@ -1,5 +1,9 @@
-#include "lv2.h"
-#include "midi.h"
+#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include <lv2/lv2plug.in/ns/ext/atom/util.h>
+#include <lv2/lv2plug.in/ns/ext/midi/midi.h>
+#include <lv2/lv2plug.in/ns/ext/urid/urid.h>
+
+#include "lv2.c" // TODO: pass map as feature so we don't need this
 
 #define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
@@ -25,8 +29,9 @@ voice voices[NUM_VOICES];
 
 typedef struct {
     double sample_rate;
-    uint8_t* midi_in;
+    LV2_Atom_Sequence* midi_in;
     float *audio_out;
+    LV2_URID midi_Event;
 } Plugin;
 
 
@@ -37,6 +42,7 @@ static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
     uint32_t i;
     for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
     plugin->sample_rate = s_rate;
+    plugin->midi_Event = lv2_urid_map->map(NULL, LV2_MIDI__MidiEvent);
 
     return (LV2_Handle)plugin;
 }
@@ -141,18 +147,22 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
     float out;
 
     Plugin *plugin = (Plugin *)instance;
-    
-    uint32_t midi_buf_index;
-    for (midi_buf_index=0;plugin->midi_in[midi_buf_index] != 0; midi_buf_index += 3) {
-        switch (plugin->midi_in[midi_buf_index] & 0xf0) {
-            case NOTE_ON:
-                note_on(plugin->midi_in[midi_buf_index+1]);
+
+    LV2_ATOM_SEQUENCE_FOREACH(plugin->midi_in, ev) {
+        if (!ev->body.type) continue;
+        if (ev->body.type == plugin->midi_Event) {
+//            TODO: use ev->time.frames;
+            const uint8_t* const msg = (const uint8_t*)(ev + 1);
+            switch (lv2_midi_message_type(msg)) {
+            case LV2_MIDI_MSG_NOTE_ON:
+                note_on(msg[1]);
                 break;
-            case NOTE_OFF:
-                note_off(plugin->midi_in[midi_buf_index+1]);
+            case LV2_MIDI_MSG_NOTE_OFF:
+                note_off(msg[1]);
                 break;
             default:
                 break;
+            }
         }
     }
 
