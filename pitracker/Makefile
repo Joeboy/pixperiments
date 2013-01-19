@@ -5,6 +5,7 @@ AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -march=armv6
 
 
 all : kernel.img
+	cp kernel.img SD_Card/
 
 clean :
 	rm -f *.o

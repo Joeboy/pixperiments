@@ -17,6 +17,11 @@ Many thanks to David Welch for https://github.com/dwelch67/raspberrypi , which
 was invaluable in getting started, to Remo Dentato for his midi file code, and
 to Dave Robillard for his LV2 work.
 
+To make it go, just copy the files in the SD_Card directory onto a blank SD
+card and stick it in your Pi, and stick some headphones in the Pi's headphone
+socket. * UPDATE * This seems to be mysteriously not working correctly right
+now, sorry.
+
 Things to do:
 -------------
  * Under linux, the pwm seems to be driven from a much faster clock ('plla')
