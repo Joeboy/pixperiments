@@ -3,8 +3,6 @@
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
 #include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 
-#include "lv2.c" // TODO: pass map as feature so we don't need this
-
 #define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
 
@@ -42,7 +40,18 @@ static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
     uint32_t i;
     for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
     plugin->sample_rate = s_rate;
-    plugin->midi_Event = lv2_urid_map->map(NULL, LV2_MIDI__MidiEvent);
+    LV2_URID_Map *map = NULL;
+
+    for (int i =0; features[i]; i++) {
+        if (!strcmp(features[i]->URI, LV2_URID__map)) {
+            map = (LV2_URID_Map*)features[i]->data;
+        }
+    }
+    if (map == NULL) {
+        printf("Error: Host does not support map feature\r\n");
+    }
+
+    plugin->midi_Event = map->map(NULL, LV2_MIDI__MidiEvent);
 
     return (LV2_Handle)plugin;
 }
@@ -63,7 +72,6 @@ static void connect_port(LV2_Handle instance, uint32_t port, void *data) {
         break;
     }
 }
-
 
 
 void note_on(uint32_t note_no) {

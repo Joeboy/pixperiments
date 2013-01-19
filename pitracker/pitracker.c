@@ -90,14 +90,14 @@ int32_t notmain (uint32_t earlypc) {
 
     pause(1);
     printf("\r\nPiTracker console\r\n");
-    LV2_URID midi_midiEvent = lv2_urid_map->map(NULL, LV2_MIDI__MidiEvent);
+    LV2_URID midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
 
     const LV2_Descriptor *synthdescriptor = lv2_descriptor(0);
     LV2_Handle synth = synthdescriptor->instantiate(
                                              synthdescriptor,
                                              samplerate,
                                              NULL,
-                                             NULL);
+                                             lv2_features);
 
     event_index = 0;
     scan_midi();

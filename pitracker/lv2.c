@@ -10,8 +10,7 @@ typedef struct urid_map_entry {
 } urid_map_entry;
 
 static urid_map_entry* urid_table;
-LV2_URID_Map* lv2_urid_map;
-LV2_URID_Unmap* lv2_urid_unmap;
+
 LV2_Atom_Forge forge;
 
 #define MIDI_BUF_SZ 256
@@ -59,17 +58,20 @@ const char *urid_unmap_func(LV2_URID_Unmap_Handle handle, LV2_URID urid) {
     }
 }
 
+LV2_URID_Map lv2_urid_map = {NULL, urid_map_func};
+LV2_URID_Unmap lv2_urid_unmap = {NULL, urid_unmap_func};
+
+static LV2_Feature map_feature       = { LV2_URID__map, &lv2_urid_map };
+static LV2_Feature unmap_feature     = { LV2_URID__unmap, &lv2_urid_unmap };
+
+const LV2_Feature* lv2_features[3] = { &map_feature, &unmap_feature, NULL };
+
+
 
 void lv2_init() {
     urid_table = NULL;
-    lv2_urid_map = malloc(sizeof(LV2_URID_Map));
-    lv2_urid_unmap = malloc(sizeof(LV2_URID_Unmap));
-    lv2_urid_map->handle = NULL; // Not sure what this should be set to..
-    lv2_urid_map->map = urid_map_func;
-    lv2_urid_unmap->handle = NULL;
-    lv2_urid_unmap->unmap = urid_unmap_func;
 
-	lv2_atom_forge_init(&forge, lv2_urid_map);
+	lv2_atom_forge_init(&forge, &lv2_urid_map);
     lv2_atom_forge_set_buffer(&forge,
 	                          (uint8_t*)atom_buffer,
 	                          MIDI_BUF_SZ);

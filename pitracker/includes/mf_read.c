@@ -141,7 +141,7 @@ static int scan_midi()
   long ntracks;
   long curtrack = 0;
   long status = 0;
-  unsigned char *msg;
+  char *msg;
   long chan;
 
 
