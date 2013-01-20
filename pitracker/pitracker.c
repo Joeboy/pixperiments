@@ -3,21 +3,28 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <unistd.h>
+
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
-#include <math.h>
 
 #include <pi/audio.h>
 #include <pi/reboot.c>
 #include <pi/uart.h>
 
-#include "midi.h"
 #include "lv2.c"
 
 #define MIDI_IN 0
 #define AUDIO_OUT 1
 
 #define PROCESS_CHUNK_SZ 32
+
+enum event_type { noteon, noteoff };
+
+typedef struct {
+    uint32_t time;
+    uint32_t note_no;
+    enum event_type type;
+} event;
 
 event* events;
 uint32_t event_index = 0;
@@ -143,13 +150,13 @@ int32_t notmain (uint32_t earlypc) {
             while (events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
                     lv2_atom_forge_frame_time(&forge, frame_time++);
-                    midi_ev[0] = NOTE_ON | channel;
+                    midi_ev[0] = LV2_MIDI_MSG_NOTE_ON | channel;
                     midi_ev[1] = events[event_index].note_no;
                     midi_ev[2] = 0x50; // velocity
                     lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
                     lv2_atom_forge_write(&forge, &midi_ev, 3);
                 } else if (events[event_index].type == noteoff) {
-                    midi_ev[0] = NOTE_OFF | channel;
+                    midi_ev[0] = LV2_MIDI_MSG_NOTE_OFF | channel;
                     midi_ev[1] = events[event_index].note_no;
                     midi_ev[2] = 0x1;
                     lv2_atom_forge_frame_time(&forge, frame_time++);

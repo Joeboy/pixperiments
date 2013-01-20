@@ -1,5 +1,5 @@
 ARMGNU ?= arm-none-eabi
-COPS = -I./includes -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
+COPS = -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
 AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -march=armv6
 
 
@@ -17,48 +17,55 @@ clean :
 tune_o : tune.mid
 	arm-none-eabi-ld -s -r -o tune.o -b binary tune.mid
 
-vectors_o : vectors.s libs
+vectors_o : vectors.s
 	$(ARMGNU)-as $(AOPS) -mfpu=vfp vectors.s -o vectors.o
 
-string_o: includes/string.h includes/string.c
-	$(ARMGNU)-gcc $(COPS) -c includes/string.c -o libs/string.o
+string_o: includes/posix/string.h includes/posix/string.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/string.c -o libs/posix/string.o
 
-unistd_o: includes/unistd.h includes/unistd.c
-	$(ARMGNU)-gcc $(COPS) -c includes/unistd.c -o libs/unistd.o
+unistd_o: includes/posix/unistd.h includes/posix/unistd.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/unistd.c -o libs/posix/unistd.o
 
-malloc_o: includes/malloc.h includes/malloc.c
-	$(ARMGNU)-gcc $(COPS) -c includes/malloc.c -o libs/malloc.o
+malloc_o: includes/posix/malloc.h includes/posix/malloc.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/malloc.c -o libs/posix/malloc.o
 
-assert_o: includes/assert.h includes/assert.c
-	$(ARMGNU)-gcc $(COPS) -c includes/assert.c -o libs/assert.o
+assert_o: includes/posix/assert.h includes/posix/assert.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/assert.c -o libs/posix/assert.o
+
+stdio_o: includes/posix/stdio.h includes/posix/stdio.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/stdio.c -o libs/posix/stdio.o
+
+math_o: includes/posix/math.h includes/posix/math.c
+	$(ARMGNU)-gcc $(COPS) -c includes/posix/math.c -o libs/posix/math.o
 
 audio_o: includes/pi/audio.h includes/pi/audio.c
+	mkdir -p libs/pi
 	$(ARMGNU)-gcc $(COPS) -c includes/pi/audio.c -o libs/pi/audio.o
 
 uart_o: includes/pi/uart.h includes/pi/uart.c
+	mkdir -p libs/pi
 	$(ARMGNU)-gcc $(COPS) -c includes/pi/uart.c -o libs/pi/uart.o
 
-stdio_o: includes/stdio.h includes/stdio.c
-	$(ARMGNU)-gcc $(COPS) -c includes/stdio.c -o libs/stdio.o
+libdirs:
+	mkdir -p libs/posix
 
-math_o: includes/math.h includes/math.c
-	$(ARMGNU)-gcc $(COPS) -c includes/math.c -o libs/math.o
+posix: libdirs math_o stdio_o assert_o malloc_o unistd_o string_o
 
 pitracker_o : pitracker.c
 	$(ARMGNU)-gcc $(COPS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors_o pitracker_o tune_o string_o unistd_o malloc_o assert_o audio_o uart_o stdio_o math_o plugins
-	$(ARMGNU)-ld vectors.o plugins/piano/piano.o pitracker.o libs/pi/audio.o tune.o libs/assert.o libs/string.o libs/math.o libs/malloc.o libs/stdio.o libs/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o uart_o plugins
+	$(ARMGNU)-ld vectors.o plugins/piano/piano.o pitracker.o libs/pi/audio.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
 
 kernel.img : pitracker.elf
 	$(ARMGNU)-objcopy pitracker.elf -O binary kernel.img
 	cp kernel.img SD_Card/
-
-plugins : piano sawtooth
 
 piano : plugins/piano/piano.c
 	make -C plugins/piano
 
 sawtooth : plugins/piano/piano.c
 	make -C plugins/sawtooth
+
+plugins : piano sawtooth
 
