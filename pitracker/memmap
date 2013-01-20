@@ -7,6 +7,12 @@ MEMORY
 SECTIONS
 {
     .text : { *(.text*) } > ram
-    .bss : { *(.bss*) } > ram
+/*    .bss : { *(.bss*) } > ram */
+    .bss  : {
+   __bss_start__ = .;
+   *(.bss*)
+   } > ram
+   __bss_end__ = .;
+   __bss_size__ = __bss_end__ - __bss_start__;
 }
 

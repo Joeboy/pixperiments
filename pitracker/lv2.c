@@ -13,13 +13,13 @@ typedef struct urid_map_entry {
 
 static urid_map_entry* urid_table;
 
-LV2_Atom_Forge forge;
+static LV2_Atom_Forge forge;
 
 #define MIDI_BUF_SZ 256
-uint8_t atom_buffer[MIDI_BUF_SZ];
+static uint8_t atom_buffer[MIDI_BUF_SZ];
 
 
-LV2_URID urid_map_func(LV2_URID_Map_Handle handle, const char* uri) {
+static LV2_URID urid_map_func(LV2_URID_Map_Handle handle, const char* uri) {
     static LV2_URID id = 1;
     urid_map_entry* next;
     if (urid_table == NULL) {
@@ -47,7 +47,7 @@ LV2_URID urid_map_func(LV2_URID_Map_Handle handle, const char* uri) {
 }
 
 
-const char *urid_unmap_func(LV2_URID_Unmap_Handle handle, LV2_URID urid) {
+static const char *urid_unmap_func(LV2_URID_Unmap_Handle handle, LV2_URID urid) {
     urid_map_entry* cur = urid_table;
     while (1) {
         if (cur->id == urid) {
@@ -60,13 +60,13 @@ const char *urid_unmap_func(LV2_URID_Unmap_Handle handle, LV2_URID urid) {
     }
 }
 
-LV2_URID_Map lv2_urid_map = {NULL, urid_map_func};
-LV2_URID_Unmap lv2_urid_unmap = {NULL, urid_unmap_func};
+static LV2_URID_Map lv2_urid_map = {NULL, urid_map_func};
+static LV2_URID_Unmap lv2_urid_unmap = {NULL, urid_unmap_func};
 
 static LV2_Feature map_feature       = { LV2_URID__map, &lv2_urid_map };
 static LV2_Feature unmap_feature     = { LV2_URID__unmap, &lv2_urid_unmap };
 
-const LV2_Feature* lv2_features[3] = { &map_feature, &unmap_feature, NULL };
+static const LV2_Feature* lv2_features[3] = { &map_feature, &unmap_feature, NULL };
 
 
 

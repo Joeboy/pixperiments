@@ -26,6 +26,11 @@ GET32:
 dummy:
     bx lr
 
+.globl bss_start
+bss_start: .word __bss_start__
+.globl bss_end
+bss_end: .word __bss_end__
+
 
 ;@vcvt.s32.f32 s2,s0
 ;@ftosis s2,s0

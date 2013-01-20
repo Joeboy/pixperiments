@@ -48,7 +48,7 @@ pitracker_o : pitracker.c
 	$(ARMGNU)-gcc $(COPS) -c pitracker.c -o pitracker.o
 
 pitracker.elf : memmap vectors_o pitracker_o tune_o string_o unistd_o malloc_o assert_o audio_o uart_o stdio_o math_o plugins
-	$(ARMGNU)-ld vectors.o plugins/sawtooth/sawtooth.o pitracker.o libs/pi/audio.o tune.o libs/assert.o libs/string.o libs/math.o libs/malloc.o libs/stdio.o libs/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+	$(ARMGNU)-ld vectors.o plugins/piano/piano.o pitracker.o libs/pi/audio.o tune.o libs/assert.o libs/string.o libs/math.o libs/malloc.o libs/stdio.o libs/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
 
 kernel.img : pitracker.elf
 	$(ARMGNU)-objcopy pitracker.elf -O binary kernel.img

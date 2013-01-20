@@ -17,22 +17,22 @@
 #define MIDI_IN 0
 #define AUDIO_OUT 1
 
-//#include "plugins/synth.c"
-
 #define PROCESS_CHUNK_SZ 32
 
 event* events;
+uint32_t event_index = 0;
+
+extern unsigned int bss_start;
+extern unsigned int bss_end;
 
 extern const LV2_Descriptor *lv2_descriptor(uint32_t index);
-
-extern uint32_t midi_in, audio_out;
 
 // Hack around our (hopefully temporary) lack of file IO
 extern uint8_t _binary_tune_mid_start;
 extern uint8_t _binary_tune_mid_size;
 
 #define EOF -1
-uint32_t fp = 0;
+uint32_t fp = 0; // midi "file pointer"
 
 int fgetc(uint8_t *dummy) {
     uint8_t x = *(&_binary_tune_mid_start + fp);
@@ -48,7 +48,6 @@ int h_error(unsigned int code, char* message) {
     return 0;
 }
 
-uint32_t event_index = 0;
 
 int h_track(int dummy, uint32_t trackno, uint32_t length) {
     events = malloc(sizeof(event) * length);
@@ -78,10 +77,13 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
     }
     return 0;
 }
+
 #include "mf_read.c"
 
 
 int32_t notmain (uint32_t earlypc) {
+    for(unsigned int ra=bss_start;ra<bss_end;ra+=4) PUT32(ra,0);
+
     uart_init();
     setup_heap();
     audio_init();

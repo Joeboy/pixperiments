@@ -19,7 +19,7 @@ typedef struct {
     uint32_t read_p, write_p;
 } ringbuffer;
 
-ringbuffer buf;
+static ringbuffer buf;
 
 void ringbuffer_init() {
     buf.buffer = malloc(sizeof(uint32_t) * AUDIO_BUFFER_SZ);
