@@ -1,6 +1,7 @@
 #ifndef PI_HARDWARE_H
 #define PI_HARDWARE_H
 
+#include <stdint.h>
 #include <pi/dma.h>
 
 #define BCM2708_PERI_BASE 0x20000000
@@ -8,8 +9,6 @@
 #define PWM_BASE          (BCM2708_PERI_BASE + 0x20C000) /* PWM controller */
 #define CLOCK_BASE        (BCM2708_PERI_BASE + 0x101000)
 #define PM_BASE           (BCM2708_PERI_BASE + 0x100000) /* Power Management, Reset controller and Watchdog registers */
-
-#define SET_GPIO_ALT(g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
 
 #define BCM2835_PWM_CONTROL 0
 #define BCM2835_PWM_STATUS  1
@@ -88,17 +87,5 @@
 extern void PUT32 (uint32_t,uint32_t);
 extern uint32_t GET32 (uint32_t);
 extern void dummy (uint32_t);
-
-volatile uint32_t* gpio = (void*)GPIO_BASE;
-volatile uint32_t* pwm = (void*)PWM_BASE;
-
-void pause(uint32_t t) {
-    // Pause for about t ms
-    int i;
-    for (;t>0;t--) {
-        for (i=5000;i>0;i--) dummy(i);
-    }
-}
-
 
 #endif

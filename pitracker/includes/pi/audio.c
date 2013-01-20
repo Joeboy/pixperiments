@@ -1,12 +1,16 @@
+#include <malloc.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <pi/hardware.h>
-#include <pi/uart.c>
-#include <math.c>
-
-#define ERRORMASK (BCM2835_GAPO2 | BCM2835_GAPO1 | \
-    BCM2835_RERR1 | BCM2835_WERR1)
+#include <pi/uart.h>
 
 #define AUDIO_BUFFER_SZ 128
 uint32_t samplerate;
+
+volatile uint32_t* gpio = (void*)GPIO_BASE;
+volatile uint32_t* pwm = (void*)PWM_BASE;
+#define SET_GPIO_ALT(g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
+
 
 static struct bcm2708_dma_cb* cb_chain;
 
@@ -61,7 +65,7 @@ void audio_init(void) {
     uint32_t idiv = 2; // 1 seems to fail
     SET_GPIO_ALT(40, 0); // set pins 40/45 (aka phone jack) to pwm function
     SET_GPIO_ALT(45, 0);
-    pause(10); // I don't know if all these pauses are really necessary
+    usleep(10); // I don't know if all these usleeps are really necessary
 
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_CNTL, PM_PASSWORD | BCM2835_PWMCLK_CNTL_KILL);
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL, 0);
@@ -76,10 +80,10 @@ void audio_init(void) {
                                 PM_PASSWORD | 
                                 BCM2835_PWMCLK_CNTL_ENABLE |
                                 BCM2835_PWMCLK_CNTL_OSCILLATOR);
-    pause(1);
+    usleep(1);
     PUT32(PWM_BASE + 4*BCM2835_PWM0_RANGE, range);
     PUT32(PWM_BASE + 4*BCM2835_PWM1_RANGE, range);
-    pause(1);
+    usleep(1);
 
     // Ensure buffer is 32-byte aligned
     void* cb_container = malloc(0x20 + sizeof(struct bcm2708_dma_cb) * AUDIO_BUFFER_SZ);
@@ -96,11 +100,11 @@ void audio_init(void) {
         cb_chain[i].next = (uint32_t)&cb_chain[i+1];
     }
     cb_chain[i-1].next = (uint32_t)&cb_chain[0];
-    pause(1);
+    usleep(1);
     PUT32(PWM_BASE + 4*BCM2835_PWM_DMAC, PWMDMAC_ENAB | PWMDMAC_THRSHLD);
-    pause(1);
+    usleep(1);
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL, PWMCTL_CLRF);
-    pause(1);
+    usleep(1);
 
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL,
           BCM2835_PWM1_USEFIFO | 
@@ -112,14 +116,14 @@ void audio_init(void) {
 
 
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, BCM2708_DMA_RESET);
-    pause(10);
+    usleep(10);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, BCM2708_DMA_INT | BCM2708_DMA_END);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CONBLK_AD, (uint32_t)&cb_chain[0]);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_DEBUG, 7); // clear debug error flags
-    pause(10);
+    usleep(10);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, 0x10880001);  // go, mid priority, wait for outstanding writes
 
-//    uart_print("audio init done\r\n");
-    pause(1);
+//    printf("audio init done\r\n");
+    usleep(1);
 }
 

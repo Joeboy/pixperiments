@@ -1,24 +1,31 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <malloc.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
+#include <math.h>
 
-#include <pi/audio.c>
+#include <pi/audio.h>
 #include <pi/reboot.c>
-#include <pi/uart.c>
+#include <pi/uart.h>
 
-#include <math.c>
-#include "notefreqs.c"
-#include "synth.c"
 #include "midi.h"
 #include "lv2.c"
 
+#define MIDI_IN 0
+#define AUDIO_OUT 1
+
+//#include "plugins/synth.c"
 
 #define PROCESS_CHUNK_SZ 32
 
 event* events;
 
+extern const LV2_Descriptor *lv2_descriptor(uint32_t index);
+
+extern uint32_t midi_in, audio_out;
 
 // Hack around our (hopefully temporary) lack of file IO
 extern uint8_t _binary_tune_mid_start;
@@ -75,10 +82,8 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 
 
 int32_t notmain (uint32_t earlypc) {
-   // annoying workaround for gcc optimization
-    synthDescriptor = NULL;
-
     uart_init();
+    setup_heap();
     audio_init();
     lv2_init();
 
@@ -88,7 +93,7 @@ int32_t notmain (uint32_t earlypc) {
     float *process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
     uint8_t midi_ev[3];
 
-    pause(1);
+    usleep(1);
     printf("\r\nPiTracker console\r\n");
     LV2_URID midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
 
@@ -114,7 +119,7 @@ int32_t notmain (uint32_t earlypc) {
             switch(ra) {
                 case 0x03:
                     printf("Rebooting\r\n");
-                    pause(2);
+                    usleep(2);
                     reboot();
                     break;
                 case 0x0d:

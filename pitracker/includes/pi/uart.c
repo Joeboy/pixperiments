@@ -1,5 +1,4 @@
-#ifndef UART_H
-#define UART_H
+#include <stdint.h>
 
 extern void PUT32 (uint32_t, uint32_t);
 extern uint32_t GET32 (uint32_t);
@@ -73,5 +72,3 @@ void uart_putc (uint32_t c) {
     PUT32(AUX_MU_IO_REG,c);
 }
 
-
-#endif

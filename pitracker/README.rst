@@ -19,8 +19,7 @@ to Dave Robillard for his LV2 work.
 
 To make it go, just copy the files in the SD_Card directory onto a blank SD
 card and stick it in your Pi, and stick some headphones in the Pi's headphone
-socket. * UPDATE * This seems to be mysteriously not working correctly right
-now, sorry.
+socket.
 
 Things to do:
 -------------

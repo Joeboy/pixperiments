@@ -1,3 +1,10 @@
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <malloc.h>
+#include <pi/hardware.h>
+#include <math.h>
+
 #include <lv2/lv2plug.in/ns/lv2core/lv2.h>
 #include <lv2/lv2plug.in/ns/ext/atom/util.h>
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
@@ -23,7 +30,7 @@ typedef struct {
 } voice;
 
 
-voice voices[NUM_VOICES];
+static voice voices[NUM_VOICES];
 
 typedef struct {
     double sample_rate;
@@ -73,8 +80,20 @@ static void connect_port(LV2_Handle instance, uint32_t port, void *data) {
     }
 }
 
+static float noteno2freq(uint32_t note_no) {
+    // This was simpler than implementing pow()
+    float multipliers[12] = { 1.0, 1.05946309436, 1.12246204831, 1.189207115, 1.25992104989,
+                              1.33483985417, 1.41421356237, 1.49830707688, 1.58740105197,
+                              1.68179283051, 1.78179743628, 1.88774862536 };
+    float multiplier, freq;
+    uint32_t octave = note_no/12;
+    multiplier = multipliers[note_no - 12*octave];
+    freq = 440.0 / 32.0;
+    while (octave-- > 0) freq *= 2;
+    return freq * multiplier * 4;
+}
 
-void note_on(uint32_t note_no) {
+static void note_on(uint32_t note_no) {
     // find a voice that's not on, or otherwise the voice that was
     // started longest ago
     uint32_t i;
@@ -96,7 +115,7 @@ void note_on(uint32_t note_no) {
     voices[best_voice].freq = noteno2freq(note_no);
 }
 
-void note_off(uint32_t note_no) {
+static void note_off(uint32_t note_no) {
     uint32_t i;
     for (i=0;i<NUM_VOICES;i++) {
         if (voices[i].note_no == note_no) {
@@ -106,7 +125,7 @@ void note_off(uint32_t note_no) {
     }
 }
 
-float envelope(voice *vp) {
+static float envelope(voice *vp) {
     float env;
     uint32_t attack_time = 250;
     float attack = 0.9;
@@ -132,15 +151,15 @@ float envelope(voice *vp) {
     return env;
 }
 
-float waveform(voice v) {
+static float waveform(voice v, double sample_rate) {
     uint32_t tremolo_period = 6000;
     static uint8_t direction=1;
     static uint32_t x=1;
-    float s1 = sin((256 * (uint32_t)v.freq * 2 * v.time) / (float)samplerate);
+    float s1 = sin((256 * (uint32_t)v.freq * 2 * v.time) / (float)sample_rate);
     s1 *= (float)1-0.95*(float)x/tremolo_period;
     x += (direction ? 1 : -1);
     if (x == 0 || x > tremolo_period) direction = !direction;
-    float s2 = square((256 * (uint32_t)v.freq * 2 * v.time) / (float)samplerate);
+    float s2 = square((256 * (uint32_t)v.freq * 2 * v.time) / (float)sample_rate);
     uint32_t p1 = 10000;
     if (v.time < p1) {
         return s1 + 0.07 * s2 * (1 - ((float)v.time / p1));
@@ -178,7 +197,7 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
         out=0;
         for (v=0;v<NUM_VOICES;v++) {
             if (voices[v].state == off) continue;
-            out += VOICE_CLAMPER * envelope(&(voices[v])) * waveform(voices[v]);
+            out += VOICE_CLAMPER * envelope(&(voices[v])) * waveform(voices[v], plugin->sample_rate);
 
             voices[v].time++;
             if (voices[v].state == released) voices[v].released_time++;
@@ -195,7 +214,7 @@ const LV2_Descriptor *lv2_descriptor(uint32_t index)
     if (!synthDescriptor) {
         synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
 
-        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/synth";
+        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/synth";
         synthDescriptor->activate = NULL;
         synthDescriptor->cleanup = cleanup;
         synthDescriptor->connect_port = connect_port;

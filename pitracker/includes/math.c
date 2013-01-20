@@ -1,6 +1,10 @@
 #ifndef MATH_H
 #define MATH_H
 
+#include <stdint.h>
+
+extern void dummy (uint32_t);
+
 /*
 float fmul(float a, float b) {
     float c;
@@ -28,6 +32,7 @@ float fdiv(float a, float b) {
     return c;
 }
 */
+
 
 // array of 256 sin values
 float sindata[] = {
