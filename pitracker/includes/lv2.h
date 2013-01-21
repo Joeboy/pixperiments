@@ -8,10 +8,12 @@ uint8_t atom_buffer[MIDI_BUF_SZ];
 
 LV2_URID_Map lv2_urid_map;
 
-const LV2_Feature* lv2_features[3];
+#define MAX_FEATURES 3
+const LV2_Feature* lv2_features[MAX_FEATURES];
 
-LV2_Handle *lv2_handles[3];
-LV2_Descriptor *lv2_descriptors[3];
+#define MAX_PLUGINS 40
+LV2_Descriptor *lv2_descriptors[MAX_PLUGINS];
+LV2_Handle *lv2_handles[MAX_PLUGINS];
 
 void lv2_init();
 

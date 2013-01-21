@@ -63,10 +63,12 @@ static LV2_Feature unmap_feature     = { LV2_URID__unmap, &lv2_urid_unmap };
 
 extern const LV2_Descriptor *lv2_descriptor_1(uint32_t index);
 extern const LV2_Descriptor *lv2_descriptor_2(uint32_t index);
+extern const LV2_Descriptor *lv2_descriptor_3(uint32_t index);
 
-static const void* lv2_descriptor_loaders[3] = {
+const void* lv2_descriptor_loaders[] = {
     lv2_descriptor_1,
     lv2_descriptor_2,
+    lv2_descriptor_3,
     NULL };
 
 

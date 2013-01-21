@@ -127,11 +127,11 @@ static void note_off(uint32_t note_no) {
 
 static float envelope(voice *vp) {
     float env;
-    uint32_t attack_time = 1000;
-    float attack = 0.5;
+    uint32_t attack_time = 200;
+    float attack = 0.9;
     uint32_t decay_time = 5000;
-    float sustain = 0.4;
-    uint32_t release_time = 3000;
+    float sustain = 0.8;
+    uint32_t release_time = 1000;
     voice v = *vp;
 
     if (v.state == on) {
@@ -151,16 +151,12 @@ static float envelope(voice *vp) {
     return env;
 }
 
+#define FIFTH_MULTIPLIER 1.49830707688
 static float waveform(voice v, double sample_rate) {
-    static int32_t vibrato=1;
-    static uint32_t vib_dir=0;
-    uint32_t vibrato_period = 2000;
-    float vibrato_depth = 0.01;
-    float freq;
-    freq = v.freq * (1.0 + vibrato_depth * (float)((float)vibrato - (float)vibrato_period/2.0)/(float)vibrato_period);
-    vibrato += (vib_dir ? -1 : 1);
-    if (vibrato > vibrato_period || vibrato ==0) vib_dir = !vib_dir;
-    return sawtooth((256 * (uint32_t)freq * 2 * v.time) / sample_rate);
+    float r = sin((256 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    r += 0.05 * sin((256 * FIFTH_MULTIPLIER * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    r += 0.3 * sin((256 * 4.0 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    return r/2;
 }
 
 static void run(LV2_Handle instance, uint32_t sample_count) {
@@ -210,7 +206,7 @@ const LV2_Descriptor *lv2_descriptor(uint32_t index)
     if (!synthDescriptor) {
         synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
 
-        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/sawtooth";
+        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/organ";
         synthDescriptor->activate = NULL;
         synthDescriptor->cleanup = cleanup;
         synthDescriptor->connect_port = connect_port;

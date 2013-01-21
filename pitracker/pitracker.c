@@ -107,6 +107,7 @@ int32_t notmain (uint32_t earlypc) {
     lv2_init();
 
     printf("\r\nPiTracker console\r\n");
+    printf("Use keys 1-3 to switch between plugins\r\n");
 
     fp=0;
     uint32_t ra;
@@ -141,6 +142,10 @@ int32_t notmain (uint32_t earlypc) {
                     break;
                 case 0x32:
                     plugin_id = 1;
+                    connect_ports(plugin_id);
+                    break;
+                case 0x33:
+                    plugin_id = 2;
                     connect_ports(plugin_id);
                     break;
                 case 0x0d:
