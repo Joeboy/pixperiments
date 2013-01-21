@@ -112,27 +112,50 @@ static void note_on_or_off(unsigned int command, uint8_t channel,
     lv2_atom_forge_write(&forge, &midi_ev, 3);
 }
 
+void led_init() {
+    // set GPIO6 as an output
+    unsigned int ra;
+
+    ra = GET32(GPFSEL1);
+    ra &=~ (7<<18);
+    ra |= 1<<18;
+    PUT32(GPFSEL1,ra);
+}
+
+void switch_init() {
+    // set GPIO1 as an input
+    unsigned int ra;
+    ra = GET32(GPFSEL1);
+    ra &= ~(7<<3);
+    ra |= 0 << 0;
+    PUT32(GPFSEL1, ra);
+}
+
 
 int32_t notmain (uint32_t earlypc) {
-    for(unsigned int ra=bss_start;ra<bss_end;ra+=4) PUT32(ra,0);
+    for(unsigned int i=bss_start;i<bss_end;i+=4) PUT32(i,0);
 
     uart_init();
     setup_heap();
     audio_init();
     lv2_init();
+    led_init();
+    switch_init();
+
+    uint32_t inkey;
+    uint32_t gpio_levs;
+    unsigned int switch_countdown = 0; // switch debouncing timer
+    uint32_t counter=0;
+    unsigned int tune_playing = 1;
+    unsigned int all_notes_off_i = 0;
+    unsigned int led_timer = 0;
+    unsigned int plugin_id = 0;
 
     printf("\r\nPiTracker console\r\n");
     printf("Use keys 1-3 to switch between plugins\r\n");
     printf("Q turns tune off\r\n");
 
-    fp=0;
-    uint32_t ra;
-    uint32_t counter=0;
     process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
-    unsigned int tune_playing = 1;
-    unsigned int all_notes_off_i = 0;
-
-    unsigned int plugin_id = 0;
 
     midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
     LV2_Atom_Forge_Frame midi_seq_frame;
@@ -145,10 +168,22 @@ int32_t notmain (uint32_t earlypc) {
     connect_ports(plugin_id);
 
     while (1) {
+        gpio_levs = GET32(GPLEV0);
+        int switch_state = gpio_levs & (1<<18); // I don't understand why this comes through on bit 18, but I don't much care.
+        if (switch_countdown) switch_countdown--;
+        else {
+            if (switch_state) {
+                switch_countdown = 500000;
+                plugin_id++;
+                if (plugin_id > 2) plugin_id = 0;
+                connect_ports(plugin_id);
+            }
+        }
+
         if(GET32(AUX_MU_LSR_REG)&0x01) {
-            ra = GET32(AUX_MU_IO_REG);
-//            dump_int_hex(ra);
-            switch(ra) {
+            inkey = GET32(AUX_MU_IO_REG);
+//            dump_int_hex(inkey);
+            switch(inkey) {
                 case 0x03:
                     printf("Rebooting\r\n");
                     usleep(2);
@@ -180,7 +215,7 @@ int32_t notmain (uint32_t earlypc) {
                     printf("\r\n");
                     break;
                 default:
-                    uart_putc(ra);
+                    uart_putc(inkey);
                     break;
             }
         }
@@ -193,8 +228,12 @@ int32_t notmain (uint32_t earlypc) {
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
             while (tune_playing && events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
+                    PUT32(GPCLR0,1<<16);
+                    led_timer = 1;
                     note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, 0x50);
                 } else if (events[event_index].type == noteoff) {
+                    PUT32(GPCLR0,1<<16);
+                    led_timer = 1;
                     note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, channel, frame_time, events[event_index].note_no, 0x1);
                 }
                 event_index++;
@@ -202,6 +241,12 @@ int32_t notmain (uint32_t earlypc) {
             if (all_notes_off_i) {
                 note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, 0, 1, all_notes_off_i++, 0x1);
                 if (all_notes_off_i == 127) all_notes_off_i = 0;
+            }
+            if (led_timer) {
+                if (led_timer++ > 10) {
+                    led_timer = 0;
+                    PUT32(GPSET0,1<<16);
+                }
             }
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             

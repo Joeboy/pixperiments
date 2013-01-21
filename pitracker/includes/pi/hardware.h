@@ -1,7 +1,6 @@
 #ifndef PI_HARDWARE_H
 #define PI_HARDWARE_H
 
-#include <stdint.h>
 #include <pi/dma.h>
 
 #define BCM2708_PERI_BASE 0x20000000
@@ -67,8 +66,9 @@
 #define PM_PASSWORD 0x5A000000 
 
 #define GPFSEL1 0x20200004
-#define GPSET0  0x2020001C
+#define GPSET0  0x2020001C // Set and clear seem to me like they're the wrong way round, but all the docs have them this way round...
 #define GPCLR0  0x20200028
+#define GPLEV0 0x20200034
 
 // Watchdog registers
 #define PM_BASE                     (BCM2708_PERI_BASE + 0x100000) /* Power Management, Reset controller and Watchdog registers */
@@ -83,9 +83,5 @@
 #define DMA_CNTL_CS          0x00
 #define DMA_CNTL_CONBLK_AD   0x04
 #define DMA_CNTL_DEBUG       0x20
-
-extern void PUT32 (uint32_t,uint32_t);
-extern uint32_t GET32 (uint32_t);
-extern void dummy (uint32_t);
 
 #endif

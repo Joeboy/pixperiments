@@ -4,6 +4,9 @@
 #include <pi/hardware.h>
 #include <pi/uart.h>
 
+extern void PUT32 (uint32_t,uint32_t);
+extern uint32_t GET32 (uint32_t);
+
 #define AUDIO_BUFFER_SZ 128
 uint32_t samplerate;
 
