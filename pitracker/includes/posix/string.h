@@ -1,6 +1,8 @@
 #ifndef STRING_H
 #define STRING_H
 
+#include <stddef.h>
+
 // These implementations are all lousy, but simple and good enough for now.
 //
 int memcmp(const void *s1, const void *s2, size_t n);

@@ -45,7 +45,7 @@ int32_t audio_buffer_free_space() {
 void audio_buffer_write(float*chunk, uint32_t chunk_sz) {
     uint32_t i;
     for (i=0;i<chunk_sz;i++) {
-        buf.buffer[buf.write_p + i] = (uint32_t)(256+192*chunk[i]);
+        buf.buffer[buf.write_p + i] = (uint32_t)(512.0+512.0*chunk[i]);
     }
     buf.write_p += chunk_sz;
     if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;

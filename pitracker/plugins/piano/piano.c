@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <malloc.h>
-#include <pi/hardware.h>
 #include <math.h>
 
 #include <lv2/lv2plug.in/ns/lv2core/lv2.h>
@@ -214,7 +213,7 @@ const LV2_Descriptor *lv2_descriptor(uint32_t index)
     if (!synthDescriptor) {
         synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
 
-        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/synth";
+        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/piano";
         synthDescriptor->activate = NULL;
         synthDescriptor->cleanup = cleanup;
         synthDescriptor->connect_port = connect_port;

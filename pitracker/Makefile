@@ -46,6 +46,9 @@ uart_o: includes/pi/uart.h includes/pi/uart.c
 	mkdir -p libs/pi
 	$(ARMGNU)-gcc $(COPS) -c includes/pi/uart.c -o libs/pi/uart.o
 
+lv2_o: includes/lv2.h includes/lv2.c
+	$(ARMGNU)-gcc $(COPS) -c includes/lv2.c -o libs/lv2.o
+
 libdirs:
 	mkdir -p libs/posix
 
@@ -54,8 +57,8 @@ posix: libdirs math_o stdio_o assert_o malloc_o unistd_o string_o
 pitracker_o : pitracker.c
 	$(ARMGNU)-gcc $(COPS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o uart_o plugins
-	$(ARMGNU)-ld vectors.o plugins/piano/piano.o pitracker.o libs/pi/audio.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o lv2_o uart_o plugins prepare_plugins
+	$(ARMGNU)-ld vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o pitracker.o libs/lv2.o libs/pi/audio.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
 
 kernel.img : pitracker.elf
 	$(ARMGNU)-objcopy pitracker.elf -O binary kernel.img
@@ -68,4 +71,9 @@ sawtooth : plugins/piano/piano.c
 	make -C plugins/sawtooth
 
 plugins : piano sawtooth
+
+prepare_plugins : plugins
+	$(ARMGNU)-objdump -t plugins/piano/piano.o | grep lv2_descriptor
+	$(ARMGNU)-objcopy --redefine-sym  lv2_descriptor=lv2_descriptor_1 plugins/piano/piano.o
+	$(ARMGNU)-objcopy --redefine-sym  lv2_descriptor=lv2_descriptor_2 plugins/sawtooth/sawtooth.o
 

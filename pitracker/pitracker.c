@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 
@@ -11,7 +12,7 @@
 #include <pi/reboot.c>
 #include <pi/uart.h>
 
-#include "lv2.c"
+#include <lv2.h>
 
 #define MIDI_IN 0
 #define AUDIO_OUT 1
@@ -29,10 +30,11 @@ typedef struct {
 event* events;
 uint32_t event_index = 0;
 
+static float *process_buf;
+
 extern unsigned int bss_start;
 extern unsigned int bss_end;
 
-extern const LV2_Descriptor *lv2_descriptor(uint32_t index);
 
 // Hack around our (hopefully temporary) lack of file IO
 extern uint8_t _binary_tune_mid_start;
@@ -88,6 +90,14 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 #include "mf_read.c"
 
 
+static void connect_ports(unsigned int plugin_id) {
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], MIDI_IN, &atom_buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], AUDIO_OUT, process_buf);
+    printf(lv2_descriptors[plugin_id]->URI);
+    printf("\r\n");
+}
+
+
 int32_t notmain (uint32_t earlypc) {
     for(unsigned int ra=bss_start;ra<bss_end;ra+=4) PUT32(ra,0);
 
@@ -96,40 +106,42 @@ int32_t notmain (uint32_t earlypc) {
     audio_init();
     lv2_init();
 
+    printf("\r\nPiTracker console\r\n");
+
     fp=0;
     uint32_t ra;
     uint32_t counter=0;
-    float *process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
+    process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
     uint8_t midi_ev[3];
 
-    usleep(1);
-    printf("\r\nPiTracker console\r\n");
-    LV2_URID midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
+    unsigned int plugin_id = 0;
 
-    const LV2_Descriptor *synthdescriptor = lv2_descriptor(0);
-    LV2_Handle synth = synthdescriptor->instantiate(
-                                             synthdescriptor,
-                                             samplerate,
-                                             NULL,
-                                             lv2_features);
+    LV2_URID midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
 
     event_index = 0;
     scan_midi();
     // reuse event_index for reading the buffer we've just written
     event_index = 0;
 
-    synthdescriptor->connect_port(synth, MIDI_IN, &atom_buffer);
-    synthdescriptor->connect_port(synth, AUDIO_OUT, process_buf);
+    connect_ports(plugin_id);
 
     while (1) {
         if(GET32(AUX_MU_LSR_REG)&0x01) {
             ra = GET32(AUX_MU_IO_REG);
-//            hexstring(ra);
+//            dump_int_hex(ra);
             switch(ra) {
                 case 0x03:
                     printf("Rebooting\r\n");
                     usleep(2);
                     reboot();
+                    break;
+                case 0x31:
+                    plugin_id = 0;
+                    connect_ports(plugin_id);
+                    break;
+                case 0x32:
+                    plugin_id = 1;
+                    connect_ports(plugin_id);
                     break;
                 case 0x0d:
                     printf("\r\n");
@@ -167,7 +179,7 @@ int32_t notmain (uint32_t earlypc) {
             }
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             
-            synthdescriptor->run(synth, PROCESS_CHUNK_SZ);
+            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], PROCESS_CHUNK_SZ);
             audio_buffer_write(process_buf, PROCESS_CHUNK_SZ);
             counter++;
         }
