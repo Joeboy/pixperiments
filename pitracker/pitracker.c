@@ -14,10 +14,12 @@
 
 #include <lv2.h>
 
+#define PROCESS_CHUNK_SZ 32
+
 #define MIDI_IN 0
 #define AUDIO_OUT 1
 
-#define PROCESS_CHUNK_SZ 32
+static LV2_URID midi_midiEvent;
 
 enum event_type { noteon, noteoff };
 
@@ -27,8 +29,9 @@ typedef struct {
     enum event_type type;
 } event;
 
-event* events;
-uint32_t event_index = 0;
+static event* events;
+
+static uint32_t event_index = 0;
 
 static float *process_buf;
 
@@ -97,6 +100,18 @@ static void connect_ports(unsigned int plugin_id) {
     printf("\r\n");
 }
 
+static void note_on_or_off(unsigned int command, uint8_t channel,
+                           uint32_t frame_time, uint8_t note_no,
+                           uint8_t velocity) {
+    uint8_t midi_ev[3];
+    midi_ev[0] = command | channel;
+    midi_ev[1] = note_no;
+    midi_ev[2] = velocity;
+    lv2_atom_forge_frame_time(&forge, frame_time++);
+    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
+    lv2_atom_forge_write(&forge, &midi_ev, 3);
+}
+
 
 int32_t notmain (uint32_t earlypc) {
     for(unsigned int ra=bss_start;ra<bss_end;ra+=4) PUT32(ra,0);
@@ -108,16 +123,19 @@ int32_t notmain (uint32_t earlypc) {
 
     printf("\r\nPiTracker console\r\n");
     printf("Use keys 1-3 to switch between plugins\r\n");
+    printf("Q turns tune off\r\n");
 
     fp=0;
     uint32_t ra;
     uint32_t counter=0;
     process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
-    uint8_t midi_ev[3];
+    unsigned int tune_playing = 1;
+    unsigned int all_notes_off_i = 0;
 
     unsigned int plugin_id = 0;
 
-    LV2_URID midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
+    midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
+    LV2_Atom_Forge_Frame midi_seq_frame;
 
     event_index = 0;
     scan_midi();
@@ -148,6 +166,16 @@ int32_t notmain (uint32_t earlypc) {
                     plugin_id = 2;
                     connect_ports(plugin_id);
                     break;
+                case 0x71:
+                    tune_playing = !tune_playing;
+                    if (tune_playing) {
+                        printf("Tune on\r\n");
+                        // TODO
+                    } else {
+                        printf("Tune off\r\n");
+                        all_notes_off_i = 1;
+                    }
+                    break;
                 case 0x0d:
                     printf("\r\n");
                     break;
@@ -159,28 +187,21 @@ int32_t notmain (uint32_t earlypc) {
         if (audio_buffer_free_space() >= PROCESS_CHUNK_SZ) {
 //            printf("feeding buffer\r\n");
             forge.offset = 0;
-            LV2_Atom_Forge_Frame midi_seq_frame;
             uint8_t channel = 0;
-            uint8_t frame_time = 1; // TODO
+            uint32_t frame_time = 1; // TODO
 
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
-            while (events[event_index].time == counter) {
+            while (tune_playing && events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
-                    lv2_atom_forge_frame_time(&forge, frame_time++);
-                    midi_ev[0] = LV2_MIDI_MSG_NOTE_ON | channel;
-                    midi_ev[1] = events[event_index].note_no;
-                    midi_ev[2] = 0x50; // velocity
-                    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
-                    lv2_atom_forge_write(&forge, &midi_ev, 3);
+                    note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, 0x50);
                 } else if (events[event_index].type == noteoff) {
-                    midi_ev[0] = LV2_MIDI_MSG_NOTE_OFF | channel;
-                    midi_ev[1] = events[event_index].note_no;
-                    midi_ev[2] = 0x1;
-                    lv2_atom_forge_frame_time(&forge, frame_time++);
-                    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
-                    lv2_atom_forge_write(&forge, &midi_ev, 3);
+                    note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, channel, frame_time, events[event_index].note_no, 0x1);
                 }
                 event_index++;
+            }
+            if (all_notes_off_i) {
+                note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, 0, 1, all_notes_off_i++, 0x1);
+                if (all_notes_off_i == 127) all_notes_off_i = 0;
             }
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             

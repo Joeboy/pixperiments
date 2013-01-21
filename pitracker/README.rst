@@ -37,3 +37,5 @@ Things to do:
  * Port to other platforms, eg. TI Stellaris
  * Sort out timing
  * Implement more midi stuff like pitch bending, channels etc.
+ * Effects plugins
+

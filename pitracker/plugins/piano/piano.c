@@ -208,8 +208,7 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
 
 
 LV2_SYMBOL_EXPORT
-const LV2_Descriptor *lv2_descriptor(uint32_t index)
-{
+const LV2_Descriptor *lv2_descriptor(uint32_t index) {
     if (!synthDescriptor) {
         synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
 
