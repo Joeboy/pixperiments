@@ -27,15 +27,16 @@ Things to do:
    than the one I'm using, which would allow for much better quality audio. I
    can't work out how to make it work with plla though, so we're stuck with
    ear-shreddingly bad audio for now.
- * Read MIDI input. We have uarts so shouldn't be too hard. I predict the
-   main challenge will be digging out the obsolescent hardware.
+ * Read hardware MIDI input. We have uarts so shouldn't be too hard. I predict
+   the main challenge will be digging out the obsolescent hardware.
  * Play MIDI files from the SD card, rather than linking them into the kernel.
- * Implement LV2 plugins via dynamic linkage, so you can just drop a plugin
+ * Implement LV2 plugins via dynamic linkage, so you can just drop plugins
    onto the SD.
  * Implement reading files from the SD card, so that the previous two things
    become possible.
- * Port to other platforms, eg. TI Stellaris
- * Sort out timing
+ * Port to other platforms, eg. TI Stellaris, Linux.
+ * Unbodge stereo / sample rate.
  * Implement more midi stuff like pitch bending, channels etc.
- * Effects plugins
+ * Test some more midi files.
+ * Effects plugins.
 
