@@ -75,14 +75,14 @@ const void* lv2_descriptor_loaders[] = {
 // function pointer for running our descriptor functions
 static int (*get_descriptor)(uint32_t index);
 
-static void load_lv2_descriptors() {
+static void load_lv2_descriptors(uint32_t sample_rate) {
     unsigned int i;
     for (i=0;lv2_descriptor_loaders[i];i++) {
         get_descriptor = lv2_descriptor_loaders[i];
         lv2_descriptors[i] = (LV2_Descriptor*)get_descriptor(0);
         lv2_handles[i] = lv2_descriptors[i]->instantiate(
                                                  lv2_descriptors[i],
-                                                 samplerate,
+                                                 sample_rate,
                                                  NULL,
                                                  lv2_features);
     }
@@ -90,7 +90,7 @@ static void load_lv2_descriptors() {
 }
 
 
-void lv2_init() {
+void lv2_init(uint32_t sample_rate) {
     urid_table = NULL;
     lv2_features[0] = &map_feature;
     lv2_features[1] = &unmap_feature;
@@ -99,6 +99,6 @@ void lv2_init() {
     lv2_atom_forge_set_buffer(&forge,
 	                          (uint8_t*)atom_buffer,
 	                          MIDI_BUF_SZ);
-    load_lv2_descriptors();
+    load_lv2_descriptors(sample_rate);
 }
 

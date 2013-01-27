@@ -140,7 +140,7 @@ static float envelope(voice *vp) {
         (*vp).env = env;
     } else if (v.state == released) {
         if (v.released_time > release_time) {
-            v.state = off;
+            vp->state = off;
             env = 0;
         } else {
             // Ramp down from whatever the last envelope value was (not necessarily the sustain value)

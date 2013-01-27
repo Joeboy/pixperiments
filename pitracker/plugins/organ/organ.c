@@ -141,7 +141,7 @@ static float envelope(voice *vp) {
         (*vp).env = env;
     } else if (v.state == released) {
         if (v.released_time > release_time) {
-            v.state = off;
+            vp->state = off;
             env = 0;
         } else {
             // Ramp down from whatever the last envelope value was (not necessarily the sustain value)
@@ -152,7 +152,7 @@ static float envelope(voice *vp) {
 }
 
 #define FIFTH_MULTIPLIER 1.49830707688
-static float waveform(voice v, double sample_rate) {
+static inline float waveform(voice v, double sample_rate) {
     float r = sin((256 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
     r += 0.05 * sin((256 * FIFTH_MULTIPLIER * (uint32_t)v.freq * 2 * v.time) / sample_rate);
     r += 0.3 * sin((256 * 4.0 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
@@ -175,6 +175,7 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
             switch (lv2_midi_message_type(msg)) {
             case LV2_MIDI_MSG_NOTE_ON:
                 note_on(msg[1]);
+//                dump_int_hex(msg[2]); // velocity
                 break;
             case LV2_MIDI_MSG_NOTE_OFF:
                 note_off(msg[1]);

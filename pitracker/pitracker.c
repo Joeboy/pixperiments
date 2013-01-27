@@ -17,7 +17,7 @@
 
 #include <lv2.h>
 
-#define PROCESS_CHUNK_SZ 32
+#define PROCESS_CHUNK_SZ 64
 
 #define MIDI_IN 0
 #define AUDIO_OUT 1
@@ -29,6 +29,7 @@ enum event_type { noteon, noteoff };
 typedef struct {
     uint32_t time;
     uint32_t note_no;
+    uint32_t velocity;
     enum event_type type;
 } event;
 
@@ -60,6 +61,13 @@ int h_error(unsigned int code, char* message) {
     return 0;
 }
 
+unsigned int ppqn; // ticks per quarter note for midi file
+static int h_header (short type, short ntracks, short division) {
+//    dump_int_hex(division); // 480
+    ppqn = division;
+    return 0;
+}
+
 
 int h_track(int dummy, uint32_t trackno, uint32_t length) {
     events = malloc(sizeof(event) * length);
@@ -67,23 +75,31 @@ int h_track(int dummy, uint32_t trackno, uint32_t length) {
 }
 
 int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsigned int v1, unsigned int v2) {
+    if (event_index>101) return 0; // bodge for unknown bug
 //    printf("status_lsb: %x\n", command);
     event e;
     switch(command) {
         case 0x90:
-            e.time = (uint32_t)track_time;
+            e.time = (uint32_t)track_time * 2; // TODO: time this relative to ppqn
+//            dump_int_hex(e.time);
             e.note_no = v1-40;
             e.type = noteon;
+            e.velocity = v2;
             events[event_index] = e;
             event_index++;
             break;
         case 0x80:
-            e.time = (uint32_t)track_time;
+            e.time = (uint32_t)track_time * 2;
             e.note_no = v1-40;
             e.type = noteoff;
             events[event_index] = e;
             event_index++;
             break;
+//        case 0x51:
+//            printf("tempo!");
+//            dump_int_hex(v1);
+//            dump_int_hex(v2);
+//            printf("\r\n");
         default:
             break;
     }
@@ -116,8 +132,8 @@ static void note_on_or_off(unsigned int command, uint8_t channel,
 int32_t notmain (uint32_t earlypc) {
     hardware_init();
     uart_init();
-    audio_init();
-    lv2_init();
+    int32_t samplerate = audio_init();
+    lv2_init(samplerate);
     led_init();
     switch_init();
 
@@ -144,6 +160,7 @@ int32_t notmain (uint32_t earlypc) {
     event_index = 0;
 
     connect_ports(plugin_id);
+
 
     while (1) {
         if (switch_countdown) switch_countdown--;
@@ -206,13 +223,14 @@ int32_t notmain (uint32_t earlypc) {
                 if (events[event_index].type == noteon) {
                     led_on();
                     led_timer = 1;
-                    note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, 0x50);
+                    note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, events[event_index].velocity);
                 } else if (events[event_index].type == noteoff) {
-                    PUT32(GPCLR0,1<<16);
+                    led_off();
                     led_timer = 1;
                     note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, channel, frame_time, events[event_index].note_no, 0x1);
                 }
                 event_index++;
+                if (event_index > 100) event_index = counter = 0;
             }
             if (all_notes_off_i) {
                 note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, 0, 1, all_notes_off_i++, 0x1);

@@ -8,7 +8,6 @@ extern void PUT32 (uint32_t,uint32_t);
 extern uint32_t GET32 (uint32_t);
 
 #define AUDIO_BUFFER_SZ 128
-uint32_t samplerate;
 
 volatile uint32_t* gpio = (void*)GPIO_BASE;
 #define SET_GPIO_ALT(g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
@@ -54,7 +53,7 @@ void audio_buffer_write(float*chunk, uint32_t chunk_sz) {
 }
 
 
-void audio_init(void) {
+int32_t audio_init(void) {
     ringbuffer_init();
     // Set up the pwm clock
     // vals read from raspbian:
@@ -64,7 +63,7 @@ void audio_init(void) {
     // PWM0_RANGE=1024
     // PWM1_RANGE=1024
     uint32_t range = 0x400;
-    uint32_t idiv = 2; // 1 seems to fail
+    uint32_t idiv = 16;
     SET_GPIO_ALT(40, 0); // set pins 40/45 (aka phone jack) to pwm function
     SET_GPIO_ALT(45, 0);
     usleep(10); // I don't know if all these usleeps are really necessary
@@ -72,7 +71,7 @@ void audio_init(void) {
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_CNTL, PM_PASSWORD | BCM2835_PWMCLK_CNTL_KILL);
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL, 0);
 
-    samplerate = 19200000 / range / idiv;
+    uint32_t samplerate = 500000000.0 / idiv / range / 2; // 2 channels
     printf("samplerate=");
     dump_int_hex(samplerate);
     printf("\r\n");
@@ -81,7 +80,7 @@ void audio_init(void) {
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_CNTL,
                                 PM_PASSWORD | 
                                 BCM2835_PWMCLK_CNTL_ENABLE |
-                                BCM2835_PWMCLK_CNTL_OSCILLATOR);
+                                BCM2835_PWMCLK_CNTL_PLLD);
     usleep(1);
     PUT32(PWM_BASE + 4*BCM2835_PWM0_RANGE, range);
     PUT32(PWM_BASE + 4*BCM2835_PWM1_RANGE, range);
@@ -127,5 +126,6 @@ void audio_init(void) {
 
 //    printf("audio init done\r\n");
     usleep(1);
+    return samplerate;
 }
 

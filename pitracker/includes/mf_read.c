@@ -152,7 +152,7 @@ static int scan_midi()
     v1 = readnum(2);
     ntracks = readnum(2);
     v2 = readnum(2);
-    ERROR = 0;//h_header(v1, ntracks, v2);
+    ERROR = h_header(v1, ntracks, v2);
     if (ERROR) FAIL(ERROR);
     if (tmp > 6) readnum(tmp-6);
   }

@@ -1,6 +1,6 @@
 ARMGNU ?= arm-none-eabi
-COPS = -DRASPBERRY_PI -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
-AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -march=armv6
+COPS = -DRASPBERRY_PI -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
+AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
 
 
 all : kernel.img plugins
@@ -9,6 +9,7 @@ clean :
 	rm -f *.o
 	rm -f libs/*.o
 	rm -f libs/pi/*.o
+	rm -f libs/posix/*.o
 	rm -f plugins/*/*.o
 	rm -f *.bin
 	rm -f *.elf
