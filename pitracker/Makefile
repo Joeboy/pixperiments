@@ -1,5 +1,5 @@
 ARMGNU ?= arm-none-eabi
-COPS = -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
+COPS = -DRASPBERRY_PI -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
 AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -march=armv6
 
 
@@ -42,6 +42,10 @@ audio_o: includes/pi/audio.h includes/pi/audio.c
 	mkdir -p libs/pi
 	$(ARMGNU)-gcc $(COPS) -c includes/pi/audio.c -o libs/pi/audio.o
 
+hardware_o: includes/pi/hardware.h includes/pi/hardware.c
+	mkdir -p libs/pi
+	$(ARMGNU)-gcc $(COPS) -c includes/pi/hardware.c -o libs/pi/hardware.o
+
 uart_o: includes/pi/uart.h includes/pi/uart.c
 	mkdir -p libs/pi
 	$(ARMGNU)-gcc $(COPS) -c includes/pi/uart.c -o libs/pi/uart.o
@@ -57,8 +61,8 @@ posix: libdirs math_o stdio_o assert_o malloc_o unistd_o string_o
 pitracker_o : pitracker.c
 	$(ARMGNU)-gcc $(COPS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o lv2_o uart_o plugins prepare_plugins
-	$(ARMGNU)-ld vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o libs/pi/audio.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o hardware_o lv2_o uart_o plugins prepare_plugins
+	$(ARMGNU)-ld vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o libs/pi/audio.o libs/pi/hardware.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
 
 kernel.img : pitracker.elf
 	$(ARMGNU)-objcopy pitracker.elf -O binary kernel.img

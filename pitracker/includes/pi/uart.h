@@ -24,8 +24,9 @@
 
 void uart_init();
 
-uint32_t uart_recv();
-
+uint32_t uart_input_ready();
+uint32_t uart_read();
+uint32_t uart_getc();
 void uart_putc (uint32_t c);
 
 #endif

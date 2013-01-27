@@ -2,7 +2,6 @@
  * Good enough for now */
 
 #include <stdint.h>
-#include <pi/hardware.h>
 #include <stddef.h>
 
 #include <malloc.h>

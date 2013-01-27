@@ -1,7 +1,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <pi/hardware.h>
+#include <pi/registers.h>
 #include <pi/uart.h>
 
 extern void PUT32 (uint32_t,uint32_t);
@@ -11,7 +11,6 @@ extern uint32_t GET32 (uint32_t);
 uint32_t samplerate;
 
 volatile uint32_t* gpio = (void*)GPIO_BASE;
-volatile uint32_t* pwm = (void*)PWM_BASE;
 #define SET_GPIO_ALT(g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
 
 

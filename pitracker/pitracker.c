@@ -8,9 +8,12 @@
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 
+#ifdef RASPBERRY_PI
 #include <pi/audio.h>
 #include <pi/reboot.c>
 #include <pi/uart.h>
+#include <pi/hardware.h>
+#endif
 
 #include <lv2.h>
 
@@ -34,9 +37,6 @@ static event* events;
 static uint32_t event_index = 0;
 
 static float *process_buf;
-
-extern unsigned int bss_start;
-extern unsigned int bss_end;
 
 
 // Hack around our (hopefully temporary) lack of file IO
@@ -112,38 +112,16 @@ static void note_on_or_off(unsigned int command, uint8_t channel,
     lv2_atom_forge_write(&forge, &midi_ev, 3);
 }
 
-void led_init() {
-    // set GPIO6 as an output
-    unsigned int ra;
-
-    ra = GET32(GPFSEL1);
-    ra &=~ (7<<18);
-    ra |= 1<<18;
-    PUT32(GPFSEL1,ra);
-}
-
-void switch_init() {
-    // set GPIO1 as an input
-    unsigned int ra;
-    ra = GET32(GPFSEL1);
-    ra &= ~(7<<3);
-    ra |= 0 << 0;
-    PUT32(GPFSEL1, ra);
-}
-
 
 int32_t notmain (uint32_t earlypc) {
-    for(unsigned int i=bss_start;i<bss_end;i+=4) PUT32(i,0);
-
+    hardware_init();
     uart_init();
-    setup_heap();
     audio_init();
     lv2_init();
     led_init();
     switch_init();
 
     uint32_t inkey;
-    uint32_t gpio_levs;
     unsigned int switch_countdown = 0; // switch debouncing timer
     uint32_t counter=0;
     unsigned int tune_playing = 1;
@@ -168,11 +146,9 @@ int32_t notmain (uint32_t earlypc) {
     connect_ports(plugin_id);
 
     while (1) {
-        gpio_levs = GET32(GPLEV0);
-        int switch_state = gpio_levs & (1<<18); // I don't understand why this comes through on bit 18, but I don't much care.
         if (switch_countdown) switch_countdown--;
         else {
-            if (switch_state) {
+            if (get_switch_state()) {
                 switch_countdown = 500000;
                 plugin_id++;
                 if (plugin_id > 2) plugin_id = 0;
@@ -180,8 +156,8 @@ int32_t notmain (uint32_t earlypc) {
             }
         }
 
-        if(GET32(AUX_MU_LSR_REG)&0x01) {
-            inkey = GET32(AUX_MU_IO_REG);
+        if(uart_input_ready()) {
+            inkey = uart_read();
 //            dump_int_hex(inkey);
             switch(inkey) {
                 case 0x03:
@@ -228,7 +204,7 @@ int32_t notmain (uint32_t earlypc) {
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
             while (tune_playing && events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
-                    PUT32(GPCLR0,1<<16);
+                    led_on();
                     led_timer = 1;
                     note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, 0x50);
                 } else if (events[event_index].type == noteoff) {
@@ -245,7 +221,7 @@ int32_t notmain (uint32_t earlypc) {
             if (led_timer) {
                 if (led_timer++ > 10) {
                     led_timer = 0;
-                    PUT32(GPSET0,1<<16);
+                    led_off();
                 }
             }
             lv2_atom_forge_pop(&forge, &midi_seq_frame);

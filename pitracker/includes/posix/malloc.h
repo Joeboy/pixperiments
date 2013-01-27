@@ -6,7 +6,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <pi/hardware.h>
 
 // TODO:
 struct mem_control_block {

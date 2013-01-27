@@ -57,13 +57,21 @@ void uart_init() {
 }
 
 
-uint32_t uart_recv () {
-    while(1) {
-        if(GET32(AUX_MU_LSR_REG)&0x01) break;
-    }
+
+uint32_t uart_input_ready() {
+    return GET32(AUX_MU_LSR_REG)&1;
+}
+
+uint32_t uart_read() {
     return GET32(AUX_MU_IO_REG);
 }
 
+uint32_t uart_getc () {
+    while (1) {
+        if (uart_input_ready()) break;
+    }
+    return uart_read();
+}
 
 void uart_putc (uint32_t c) {
     while(1) {
