@@ -96,9 +96,6 @@ void lv2_init(uint32_t sample_rate) {
     lv2_features[1] = &unmap_feature;
     lv2_features[2] = NULL ;
 	lv2_atom_forge_init(&forge, &lv2_urid_map);
-    lv2_atom_forge_set_buffer(&forge,
-	                          (uint8_t*)atom_buffer,
-	                          MIDI_BUF_SZ);
     load_lv2_descriptors(sample_rate);
 }
 

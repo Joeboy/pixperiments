@@ -17,10 +17,8 @@
 
 #include <lv2.h>
 
-#define PROCESS_CHUNK_SZ 64
-
-#define MIDI_IN 0
-#define AUDIO_OUT 1
+#define LV2_AUDIO_BUFFER_SIZE 0x20
+#define LV2_MIDI_BUFFER_SIZE 256
 
 static LV2_URID midi_midiEvent;
 
@@ -37,7 +35,13 @@ static event* events;
 
 static uint32_t event_index = 0;
 
-static float *process_buf;
+enum lv2_port_type { audio, atom };
+typedef struct {
+    enum lv2_port_type type;
+    uint32_t id;
+    void *buffer;
+    size_t buffer_sz;
+} lv2_port;
 
 
 // Hack around our (hopefully temporary) lack of file IO
@@ -109,13 +113,6 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
 #include "mf_read.c"
 
 
-static void connect_ports(unsigned int plugin_id) {
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], MIDI_IN, &atom_buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], AUDIO_OUT, process_buf);
-    printf(lv2_descriptors[plugin_id]->URI);
-    printf("\r\n");
-}
-
 static void note_on_or_off(unsigned int command, uint8_t channel,
                            uint32_t frame_time, uint8_t note_no,
                            uint8_t velocity) {
@@ -139,6 +136,7 @@ int32_t notmain (uint32_t earlypc) {
 
     uint32_t inkey;
     unsigned int switch_countdown = 0; // switch debouncing timer
+    uint32_t t=0;
     uint32_t counter=0;
     unsigned int tune_playing = 1;
     unsigned int all_notes_off_i = 0;
@@ -149,7 +147,19 @@ int32_t notmain (uint32_t earlypc) {
     printf("Use keys 1-3 to switch between plugins\r\n");
     printf("Q turns tune off\r\n");
 
-    process_buf = malloc(sizeof(float) * PROCESS_CHUNK_SZ);
+    lv2_port output_left, output_right, midi_in;
+    output_left.id = 1;
+    output_left.type = audio;
+    output_left.buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
+    output_left.buffer_sz = LV2_AUDIO_BUFFER_SIZE;
+    output_right.id = 2;
+    output_right.type = audio;
+    output_right.buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
+    output_right.buffer_sz = LV2_AUDIO_BUFFER_SIZE;
+    midi_in.id = 3;
+    midi_in.type = atom;
+    midi_in.buffer = malloc(sizeof(uint8_t) * LV2_MIDI_BUFFER_SIZE);
+    midi_in.buffer_sz = LV2_MIDI_BUFFER_SIZE;
 
     midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
     LV2_Atom_Forge_Frame midi_seq_frame;
@@ -159,7 +169,13 @@ int32_t notmain (uint32_t earlypc) {
     // reuse event_index for reading the buffer we've just written
     event_index = 0;
 
-    connect_ports(plugin_id);
+    lv2_atom_forge_set_buffer(&forge,
+                              midi_in.buffer,
+                              LV2_MIDI_BUFFER_SIZE);
+
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
 
 
     while (1) {
@@ -169,7 +185,8 @@ int32_t notmain (uint32_t earlypc) {
                 switch_countdown = 500000;
                 plugin_id++;
                 if (plugin_id > 2) plugin_id = 0;
-                connect_ports(plugin_id);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
             }
         }
 
@@ -183,16 +200,11 @@ int32_t notmain (uint32_t earlypc) {
                     reboot();
                     break;
                 case 0x31:
-                    plugin_id = 0;
-                    connect_ports(plugin_id);
-                    break;
-                case 0x32:
-                    plugin_id = 1;
-                    connect_ports(plugin_id);
-                    break;
-                case 0x33:
-                    plugin_id = 2;
-                    connect_ports(plugin_id);
+                    plugin_id++;
+                    if (plugin_id > 2) plugin_id = 0;
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
                     break;
                 case 0x71:
                     tune_playing = !tune_playing;
@@ -212,7 +224,10 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
-        if (audio_buffer_free_space() >= PROCESS_CHUNK_SZ) {
+        if (audio_buffer_free_space() >= 2 * LV2_AUDIO_BUFFER_SIZE) {
+            lv2_atom_forge_set_buffer(&forge,
+                                      midi_in.buffer,
+                                      LV2_MIDI_BUFFER_SIZE);
 //            printf("feeding buffer\r\n");
             forge.offset = 0;
             uint8_t channel = 0;
@@ -244,8 +259,21 @@ int32_t notmain (uint32_t earlypc) {
             }
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             
-            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], PROCESS_CHUNK_SZ);
-            audio_buffer_write(process_buf, PROCESS_CHUNK_SZ);
+            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
+            /*
+            float* b;
+            for (unsigned int i=0;i<LV2_AUDIO_BUFFER_SIZE;i++) {
+                b = output_left.buffer;
+                b[i] = ((t + i) & 0xff);
+                b[i] *=  1 * (float)(t & 0x3ffff) / (float)0x3ffff;
+                b = output_right.buffer;
+                b[i] = ((t + i) & 0x7f);
+                b[i] *= 1 * ((float)1 - (float)(t & 0x3ffff) / (float)0x3ffff);
+                b[i] = 0;
+                t++;
+            }
+            */
+            audio_buffer_write(output_left.buffer, output_right.buffer, output_left.buffer_sz);
             counter++;
         }
     }

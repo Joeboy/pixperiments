@@ -27,29 +27,38 @@ void ringbuffer_init() {
     buf.read_p = 0;
     buf.write_p = 0;
     uint32_t i;
-    for (i=0;i<AUDIO_BUFFER_SZ;i++) {
-        buf.buffer[i]=0;
-    }
+    for (i=0;i<AUDIO_BUFFER_SZ;i++) buf.buffer[i]=0;
 }
 
 int32_t audio_buffer_free_space() {
-    buf.read_p = (struct bcm2708_dma_cb*)GET32(DMA5_CNTL_BASE + DMA_CNTL_CONBLK_AD) - cb_chain;
+    buf.read_p = (struct bcm2708_dma_cb*)GET32(DMA5_CNTL_BASE + BCM2708_DMA_ADDR) - cb_chain;
     uint32_t spare;
     if (buf.read_p >= buf.write_p) {
         spare = buf.read_p - buf.write_p;
     } else {
         spare = AUDIO_BUFFER_SZ - (buf.write_p - buf.read_p);
     }
+//    printf("free_space: ");
+//    dump_int_hex(spare);
+//    printf("\r\n");
+//    dump_int_bin(GET32(DMA5_CNTL_BASE + BCM2708_DMA_DEBUG));
     return spare;
 }
 
-void audio_buffer_write(float*chunk, uint32_t chunk_sz) {
-    uint32_t i;
-    for (i=0;i<chunk_sz;i++) {
-        buf.buffer[buf.write_p + i] = (uint32_t)(512.0+512.0*chunk[i]);
+void audio_buffer_write(float *audio_buf_left, float *audio_buf_right, size_t size) {
+    static uint32_t t;
+    for (uint32_t i=0;i<2*size;i+=2) {
+        buf.buffer[buf.write_p + i] = (uint32_t)(512.0+512.0*audio_buf_left[i]);
+        buf.buffer[buf.write_p + i] = 512 + 512.0 * sin(t & 0xff);
+        buf.buffer[buf.write_p + i] = 512.0 + 512.0 * sin((256 * 440 * 2 * t) / 30517.0);
+        buf.buffer[buf.write_p + i + 1] = 0;//(uint32_t)(512.0+512.0*audio_buf_right[i]);
+        t++;
     }
-    buf.write_p += chunk_sz;
-    if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p = 0;
+    buf.write_p += 2 * size;
+    if (buf.write_p >= AUDIO_BUFFER_SZ) buf.write_p -= AUDIO_BUFFER_SZ;
+//    printf("buf.write_p = ");
+//    dump_int_hex(buf.write_p);
+//    printf("\r\n");
 }
 
 
@@ -63,7 +72,7 @@ int32_t audio_init(void) {
     // PWM0_RANGE=1024
     // PWM1_RANGE=1024
     uint32_t range = 0x400;
-    uint32_t idiv = 16;
+    uint32_t idiv = 8;
     SET_GPIO_ALT(40, 0); // set pins 40/45 (aka phone jack) to pwm function
     SET_GPIO_ALT(45, 0);
     usleep(10); // I don't know if all these usleeps are really necessary
@@ -119,8 +128,8 @@ int32_t audio_init(void) {
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, BCM2708_DMA_RESET);
     usleep(10);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, BCM2708_DMA_INT | BCM2708_DMA_END);
-    PUT32(DMA5_CNTL_BASE + DMA_CNTL_CONBLK_AD, (uint32_t)&cb_chain[0]);
-    PUT32(DMA5_CNTL_BASE + DMA_CNTL_DEBUG, 7); // clear debug error flags
+    PUT32(DMA5_CNTL_BASE + BCM2708_DMA_ADDR, (uint32_t)&cb_chain[0]);
+    PUT32(DMA5_CNTL_BASE + BCM2708_DMA_DEBUG, 7); // clear debug error flags
     usleep(10);
     PUT32(DMA5_CNTL_BASE + DMA_CNTL_CS, 0x10880001);  // go, mid priority, wait for outstanding writes
 
