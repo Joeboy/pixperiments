@@ -84,7 +84,7 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
     event e;
     switch(command) {
         case 0x90:
-            e.time = (uint32_t)track_time * 2; // TODO: time this relative to ppqn
+            e.time = (uint32_t)track_time * 3; // TODO: time this relative to ppqn
 //            dump_int_hex(e.time);
             e.note_no = v1-40;
             e.type = noteon;
@@ -93,7 +93,7 @@ int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsig
             event_index++;
             break;
         case 0x80:
-            e.time = (uint32_t)track_time * 2;
+            e.time = (uint32_t)track_time * 3;
             e.note_no = v1-40;
             e.type = noteoff;
             events[event_index] = e;
@@ -136,7 +136,6 @@ int32_t notmain (uint32_t earlypc) {
 
     uint32_t inkey;
     unsigned int switch_countdown = 0; // switch debouncing timer
-    uint32_t t=0;
     uint32_t counter=0;
     unsigned int tune_playing = 1;
     unsigned int all_notes_off_i = 0;
@@ -176,7 +175,6 @@ int32_t notmain (uint32_t earlypc) {
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
-
 
     while (1) {
         if (switch_countdown) switch_countdown--;
@@ -224,7 +222,7 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
-        if (audio_buffer_free_space() >= 2 * LV2_AUDIO_BUFFER_SIZE) {
+        if (audio_buffer_free_space() > LV2_AUDIO_BUFFER_SIZE * 2) {
             lv2_atom_forge_set_buffer(&forge,
                                       midi_in.buffer,
                                       LV2_MIDI_BUFFER_SIZE);
@@ -260,19 +258,7 @@ int32_t notmain (uint32_t earlypc) {
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             
             lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
-            /*
-            float* b;
-            for (unsigned int i=0;i<LV2_AUDIO_BUFFER_SIZE;i++) {
-                b = output_left.buffer;
-                b[i] = ((t + i) & 0xff);
-                b[i] *=  1 * (float)(t & 0x3ffff) / (float)0x3ffff;
-                b = output_right.buffer;
-                b[i] = ((t + i) & 0x7f);
-                b[i] *= 1 * ((float)1 - (float)(t & 0x3ffff) / (float)0x3ffff);
-                b[i] = 0;
-                t++;
-            }
-            */
+
             audio_buffer_write(output_left.buffer, output_right.buffer, output_left.buffer_sz);
             counter++;
         }

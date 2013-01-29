@@ -83,6 +83,5 @@
 
 #define DMA_CONTROLLER_BASE 0x20007000
 #define DMA5_CNTL_BASE DMA_CONTROLLER_BASE + 0x500
-#define DMA_CNTL_CS          0x00
 
 #endif

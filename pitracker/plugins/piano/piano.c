@@ -158,7 +158,7 @@ static float envelope(voice *vp) {
 }
 
 static float waveform(voice v, double sample_rate) {
-    uint32_t tremolo_period = 6000;
+    uint32_t tremolo_period = 12000;
     static uint8_t direction=1;
     static uint32_t x=1;
     float s1 = sin((256 * (uint32_t)v.freq * 2 * v.time) / (float)sample_rate);

@@ -12,8 +12,9 @@
 #define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
 
-#define MIDI_IN 0
-#define AUDIO_OUT 1
+#define OUTPUT_LEFT 1
+#define OUTPUT_RIGHT 2
+#define MIDI_IN 3
 
 static LV2_Descriptor *synthDescriptor = NULL;
 
@@ -34,7 +35,8 @@ static voice voices[NUM_VOICES];
 typedef struct {
     double sample_rate;
     LV2_Atom_Sequence* midi_in;
-    float *audio_out;
+    float *output_left;
+    float *output_right;
     LV2_URID midi_Event;
 } Plugin;
 
@@ -73,8 +75,13 @@ static void connect_port(LV2_Handle instance, uint32_t port, void *data) {
     case MIDI_IN:
         plugin->midi_in = data;
         break;
-    case AUDIO_OUT:
-        plugin->audio_out = data;
+    case OUTPUT_LEFT:
+        plugin->output_left = data;
+        break;
+    case OUTPUT_RIGHT:
+        plugin->output_right = data;
+        break;
+    default:
         break;
     }
 }
@@ -198,7 +205,8 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
             voices[v].time++;
             if (voices[v].state == released) voices[v].released_time++;
         }
-        plugin->audio_out[i] = out;
+        plugin->output_left[i] = out;
+        plugin->output_right[i] = out;
         t++;
     }
 }
