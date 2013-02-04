@@ -64,9 +64,10 @@ device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
     // I have no means of testing this, so it probably doesn't work.
     int bytes_written = 0;
     while (bytes_written < len) {
-        while (!(readl(aux + AUX_MU_LSR_REG) &0x20)) {}
-	put_user(buff + bytes_written, aux + AUX_MU_IO_REG);
-        bytes_written++;
+        while (1) {
+            if (readl(aux + AUX_MU_LSR_REG) &0x20) break;
+        }
+	put_user(buff[bytes_written++], aux + AUX_MU_IO_REG);
     }
     return bytes_written;
 }
