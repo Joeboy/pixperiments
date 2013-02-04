@@ -61,7 +61,14 @@ static ssize_t device_read(struct file *filp,   /* see include/linux/fs.h   */
 static ssize_t
 device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 {
-    // TODO
+    // I have no means of testing this, so it probably doesn't work.
+    int bytes_written = 0;
+    while (bytes_written < len) {
+        while (!(readl(aux + AUX_MU_LSR_REG) &0x20)) {}
+	put_user(buff + bytes_written, aux + AUX_MU_IO_REG);
+        bytes_written++;
+    }
+    return bytes_written;
 }
 
 
