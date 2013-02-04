@@ -138,3 +138,6 @@ void cleanup_module(void)
     unregister_chrdev(Major, DEVICE_NAME);
 }
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Joe Button");
+MODULE_DESCRIPTION("Read/write uart0 at nonstandard midi rate (31250Hz)");
