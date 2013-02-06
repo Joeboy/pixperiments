@@ -16,22 +16,20 @@ Instructions
 
 ::
 
+  Install the headers for your kernel. Unfortunately if you're running the
+  default Raspbian install you'll need to upgrade your kernel, as the default
+  kernel doesn't have a header package
+
   cd pimidi_kernel_module
 
   make
 
   sudo insmod pimidi.ko
 
-  sudo mknod /dev/pimidi u 248 1
-
-  sudo chmod 666 /dev/pimidi
-
-Note that the "248" in the mknod command above may need to be some other number
-on your system. If you look in the output of 'dmesg', It should tell you the
-correct number.
+  sudo chmod 666 /dev/pimidi1
 
 Anyway, after you've run that lot you should have a midi serial device at
-/dev/pimidi. I haven't been able to test writing to it as I don't have any
+/dev/pimidi1. I haven't been able to test writing to it as I don't have any
 equipment with a midi in. Please let me know if it works! And if it doesn't,
 please fix it!
 

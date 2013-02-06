@@ -5,6 +5,8 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/cdev.h>
+#include <linux/device.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -13,7 +15,10 @@
 
 #define SUCCESS 0
 
-static int Major;
+static unsigned int pimidi_major;
+static struct class *pimidi_class = NULL;
+static struct cdev cdev;
+
 static int Device_Open = 0; // Is device open? Used to prevent multiple access to device
 
 static volatile unsigned int *gpio;
@@ -118,25 +123,67 @@ int init_module(void)
 
     writel(3, aux + AUX_MU_CNTL_REG);
 
-    Major = register_chrdev(0, DEVICE_NAME, &fops);
+    dev_t dev = 0;
+    int err = 0;
 
-    if (Major < 0) {
-      printk(KERN_ALERT "Registering char device failed with %d\n", Major);
-      return Major;
+    err = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
+    if (err < 0) {
+        printk(KERN_WARNING "alloc_chrdev_region() failed\n");
+        return err;
+    }
+    pimidi_major = MAJOR(dev);
+    pimidi_class = class_create(THIS_MODULE, DEVICE_NAME);
+    if (IS_ERR(pimidi_class)) {
+        err = PTR_ERR(pimidi_class);
+        goto fail;
     }
 
-    printk(KERN_INFO "I was assigned major number %d. To talk to\n", Major);
-    printk(KERN_INFO "the driver, create a dev file with\n");
-    printk(KERN_INFO "'mknod /dev/%s c %d 0'.\n", DEVICE_NAME, Major);
+    err = 0;
+    dev_t devno = MKDEV(pimidi_major, 1);
+    struct device *device = NULL;
+    
+    BUG_ON(pimidi_class == NULL);
+    
+    cdev_init(&cdev, &fops);
+    cdev.owner = THIS_MODULE;
+    
+    err = cdev_add(&cdev, devno, 1);
+    if (err) {
+        printk(KERN_WARNING "[target] Error %d while trying to add %s%d",
+               err, DEVICE_NAME, 1);
+        return err;
+    }
+    
+    device = device_create(pimidi_class, NULL, /* no parent device */ 
+    devno, NULL, /* no additional data */
+    DEVICE_NAME "%d", 1);
+    
+    if (IS_ERR(device)) {
+        err = PTR_ERR(device);
+        printk(KERN_WARNING "[target] Error %d while trying to create %s%d",
+               err, DEVICE_NAME, 1);
+        cdev_del(&cdev);
+        return err;
+    }
 
-    return SUCCESS;
+
+    printk(KERN_INFO "Loaded pimidi uart driver");
+    return 0; /* success */
+    
+    fail:
+        cleanup_module();
+        return err;
 }
 
 
 void cleanup_module(void)
 {
-    unregister_chrdev(Major, DEVICE_NAME);
+    device_destroy(pimidi_class, MKDEV(pimidi_major, 1));
+    cdev_del(&cdev);
+    if (pimidi_class) class_destroy(pimidi_class);
+    unregister_chrdev_region(MKDEV(pimidi_major, 0), 1);
 }
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Joe Button");
