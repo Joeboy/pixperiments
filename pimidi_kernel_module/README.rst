@@ -23,11 +23,6 @@ Instructions
 
   sudo dpkg -i pimidi-dkms_0.1_all.deb
 
-  Due to dkms being broken, for the time being you'll need to run the post
-  install script manually:
-
-  sudo sh /usr/src/pimidi-0.1/postinst.sh
-
   You should now have a midi serial device at /dev/pimidi1. I haven't been able
   to test writing to it as I don't have any equipment with a midi in. Please
   let me know if it works! And if it doesn't, please fix it!
