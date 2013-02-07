@@ -1,16 +1,73 @@
 #include <pi/uart.h>
 
 #include <stdint.h>
+#include <stdarg.h>
 
-void printf(const char *s) {
-    // Format specifiers (%d) not implemented
+
+void printf(const char *s, ...) {
+    // This is a really, really sketchy implementation
+    // No type checking / error handling.
+    // Only handles %c, %x and %d (badly) so far. Let's fix it up as we go along.
+    // Handle with care!
+    unsigned int n=0, num_args=0;
+    unsigned int state = 0;
     char c;
-    while(1) {
-        c = *s;
-        if (c == 0) return;
-        uart_putc(c);
-        s++;
+    va_list args;
+
+    while(s[n]) {
+        c = s[n];
+        if (state == 1) {
+            switch (c) {
+                case 'c':
+                    num_args++;
+                    state = 0;
+                    break;
+                case 'd':
+                    num_args++;
+                    state = 0;
+                    break;
+                case 'x':
+                    num_args++;
+                    state = 0;
+                    break;
+                default:
+                    printf("printf: bad placeholder '%c'", c);
+                    break;
+            }
+        }
+        if (c == '%') state = 1;
+        n++;
     }
+    unsigned int argi = 0;
+    n = 0;
+    va_start(args, num_args);
+    state = 0;
+    while (s[n]) {
+        c = s[n];
+        if (state == 1) {
+            switch(c) {
+                case 'c':
+                    uart_putc((char)va_arg(args, uint32_t));
+                    state = 0;
+                    argi++;
+                case 'd':
+                    dump_int_hex(va_arg(args, uint32_t));
+                    state = 0;
+                    argi++;
+                case 'x':
+                    dump_int_hex(va_arg(args, uint32_t));
+                    state = 0;
+                    argi++;
+                default:
+                    break;
+            }
+        } else {
+            if (c == '%') state = 1;
+            else uart_putc(c);
+        }
+        n++;
+    }
+    va_end(args);
 }
 
 void dump_nibble_hex(int8_t v) {

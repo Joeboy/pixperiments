@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void printf(const char *s);
+void printf(const char *s, ...);
 
 void dump_nibble_hex(int8_t v);
 
