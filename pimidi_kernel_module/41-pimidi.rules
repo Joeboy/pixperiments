@@ -1,0 +1,1 @@
+KERNEL=="pimidi*", GROUP="audio", MODE="0660"

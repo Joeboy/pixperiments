@@ -3,7 +3,7 @@
 import sys
 from time import sleep
 
-PIMIDI_DEV = "/dev/pimidi"
+PIMIDI_DEV = "/dev/pimidi1"
 
 
 def test_receive():
