@@ -13,6 +13,7 @@
 #include <pi/reboot.c>
 #include <pi/uart.h>
 #include <pi/hardware.h>
+#define EOF -1
 #endif
 
 #include <lv2.h>
@@ -48,14 +49,15 @@ typedef struct {
 extern uint8_t _binary_tune_mid_start;
 extern uint8_t _binary_tune_mid_size;
 
-#define EOF -1
 uint32_t fp = 0; // midi "file pointer"
 
+#ifdef RASPBERRY_PI
 int fgetc(uint8_t *dummy) {
     uint8_t x = *(&_binary_tune_mid_start + fp);
     fp++;
     return x;
 }
+#endif
 
 int h_error(unsigned int code, char* message) {
     printf("Error: ");
