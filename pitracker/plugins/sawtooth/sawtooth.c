@@ -16,6 +16,10 @@
 #define OUTPUT_RIGHT 2
 #define MIDI_IN 3
 
+#ifndef M_PI
+#define M_PI 3.14159265
+#endif
+
 static LV2_Descriptor *synthDescriptor = NULL;
 
 enum voice_state {on, released, off};
@@ -159,15 +163,15 @@ static float envelope(voice *vp) {
 }
 
 static float waveform(voice v, double sample_rate) {
-    static int32_t vibrato=1;
-    static uint32_t vib_dir=0;
-    uint32_t vibrato_period = 2000;
-    float vibrato_depth = 0.01;
-    float freq;
-    freq = v.freq * (1.0 + vibrato_depth * (float)((float)vibrato - (float)vibrato_period/2.0)/(float)vibrato_period);
-    vibrato += (vib_dir ? -1 : 1);
-    if (vibrato > vibrato_period || vibrato ==0) vib_dir = !vib_dir;
-    return sawtooth((256 * (uint32_t)freq * 2 * v.time) / sample_rate);
+//    static int32_t vibrato=1;
+//    static uint32_t vib_dir=0;
+//    uint32_t vibrato_period = 2000;
+//    float vibrato_depth = 0.1;
+//    float freq;
+//    freq = v.freq;//*/100 * (1.0 + vibrato_depth * (float)((float)vibrato - (float)vibrato_period/2.0)/(float)vibrato_period);
+//    vibrato += (vib_dir ? -1 : 1);
+//    if (vibrato > vibrato_period || vibrato ==0) vib_dir = !vib_dir;
+    return 0.5 * !!((unsigned int)((16 * v.freq * 2 * v.time) / sample_rate) & 0x7);
 }
 
 static void run(LV2_Handle instance, uint32_t sample_count) {

@@ -10,10 +10,19 @@
 
 #ifdef RASPBERRY_PI
 #include <pi/audio.h>
-#include <pi/reboot.c>
+#include <pi/reboot.h>
 #include <pi/uart.h>
+#include <pi/kbhit.h>
 #include <pi/hardware.h>
 #define EOF -1
+#define stdout 0
+#endif
+
+#ifdef LINUX
+#include <linux/hardware.h>
+#include <linux/audio.h>
+#include <linux/kbhit.h>
+#include <stdlib.h>
 #endif
 
 #include <lv2.h>
@@ -51,19 +60,15 @@ extern uint8_t _binary_tune_mid_size;
 
 uint32_t fp = 0; // midi "file pointer"
 
-#ifdef RASPBERRY_PI
-int fgetc(uint8_t *dummy) {
+int midi_fgetc(uint8_t *dummy) {
     uint8_t x = *(&_binary_tune_mid_start + fp);
     fp++;
     return x;
 }
-#endif
 
 int h_error(unsigned int code, char* message) {
-    printf("Error: ");
-    dump_int_hex(code);
-    printf(message);
-    printf("\r\n");
+    printf("Error: %d\r\n", code);
+    printf("%s\r\n", message);
     return 0;
 }
 
@@ -130,7 +135,6 @@ static void note_on_or_off(unsigned int command, uint8_t channel,
 
 int32_t notmain (uint32_t earlypc) {
     hardware_init();
-    uart_init();
     int32_t samplerate = audio_init();
     lv2_init(samplerate);
     led_init();
@@ -190,14 +194,20 @@ int32_t notmain (uint32_t earlypc) {
             }
         }
 
-        if(uart_input_ready()) {
-            inkey = uart_read();
-//            dump_int_hex(inkey);
+        if(kbhit()) {
+            inkey = readch();
+//            printf("%x", inkey);
             switch(inkey) {
                 case 0x03:
+#ifdef RASPBERRY_PI
                     printf("Rebooting\r\n");
                     usleep(2);
                     reboot();
+#else
+                    printf("Exiting\r\n");
+                    close_keyboard();
+                    exit(0);
+#endif
                     break;
                 case 0x31:
                     plugin_id++;
@@ -220,7 +230,10 @@ int32_t notmain (uint32_t earlypc) {
                     printf("\r\n");
                     break;
                 default:
-                    uart_putc(inkey);
+                    putc(inkey, stdout);
+#ifdef LINUX
+                    fflush(stdout);
+#endif
                     break;
             }
         }
@@ -267,3 +280,8 @@ int32_t notmain (uint32_t earlypc) {
     }
 }
 
+#ifdef LINUX
+int main() {
+    notmain(0);
+}
+#endif

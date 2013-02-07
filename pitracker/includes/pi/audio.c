@@ -1,5 +1,6 @@
 #include <malloc.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <pi/registers.h>
 

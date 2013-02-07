@@ -15,7 +15,11 @@
 #define OUTPUT_LEFT 1
 #define OUTPUT_RIGHT 2
 #define MIDI_IN 3
- 
+
+#ifndef M_PI
+#define M_PI           3.14159265358979323846
+#endif
+
 static LV2_Descriptor *synthDescriptor = NULL;
 
 enum voice_state {on, released, off};
@@ -160,9 +164,9 @@ static float envelope(voice *vp) {
 
 #define FIFTH_MULTIPLIER 1.49830707688
 static inline float waveform(voice v, double sample_rate) {
-    float r = sin((256 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
-    r += 0.05 * sin((256 * FIFTH_MULTIPLIER * (uint32_t)v.freq * 2 * v.time) / sample_rate);
-    r += 0.3 * sin((256 * 4.0 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    float r = sinf((M_PI * 2 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    r += 0.05 * sinf((M_PI * 2 * FIFTH_MULTIPLIER * (uint32_t)v.freq * 2 * v.time) / sample_rate);
+    r += 0.3 * sinf((M_PI * 2 * 4.0 * (uint32_t)v.freq * 2 * v.time) / sample_rate);
     return r/2;
 }
 

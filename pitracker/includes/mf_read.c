@@ -33,11 +33,11 @@ static long readvar()
 {
   long v=0; int c;
 
-  if ((c = fgetc(midi_file)) == EOF) return -1;
+  if ((c = midi_fgetc(midi_file)) == EOF) return -1;
 
   while (c & 0x80 ) {
     v = (v << 7) | (c & 0x7f);
-    if ((c = fgetc(midi_file)) == EOF) return -1;
+    if ((c = midi_fgetc(midi_file)) == EOF) return -1;
   }
   v = (v << 7) | c;
   return (v);
@@ -50,7 +50,7 @@ static long readnum(int k)
   if (k == 0) return(readvar());
 
   while (k-- > 0) {
-    if ((x = fgetc(midi_file)) == EOF) return -1;
+    if ((x = midi_fgetc(midi_file)) == EOF) return -1;
     v = (v << 8) | x;
   }
   return v;
@@ -85,7 +85,7 @@ static char *readmsg(long n)
 //  if (chrbuf) {
 //    s = chrbuf;
     while (n-- > 0) {   /*** Read the message ***/
-      if ((c = fgetc(midi_file)) == EOF) return NULL;
+      if ((c = midi_fgetc(midi_file)) == EOF) return NULL;
 //      *s++ = c;
     }
     return (char*)1; // fudge the return val

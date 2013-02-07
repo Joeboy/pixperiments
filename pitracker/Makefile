@@ -1,91 +1,94 @@
+CWD = $(shell pwd)
 ifeq ($(TARGET), LINUX)
-export COPS = -DLINUX -I./includes -Wall -O2 -std=c99 -nostdlib
-all : pitracker.exe
+
+PLATFORM_SRC = $(wildcard includes/linux/*.c)
+
+all : pitracker_exe
+
+CC = gcc
+OBJDUMP = objdump
+OBJCOPY = objcopy
 
 else
+
+TARGET = RASPBERRY_PI
+
 AS = arm-none-eabi-as
 export CC = arm-none-eabi-gcc
 export LD = arm-none-eabi-ld
 OBJDUMP = arm-none-eabi-objdump
 OBJCOPY = arm-none-eabi-objcopy
 
-COPS = -DRASPBERRY_PI -I./includes -I./includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
-AOPS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
+EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math -nostdlib
+AFLAGS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
 
-all : kernel_img plugins
+PLATFORM_SRC = $(wildcard includes/pi/*.c)
+
+all : kernel_img
+
 endif
+
+export CFLAGS = -D$(TARGET) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAGS)
+
+PLATFORM_OBJSX = $(PLATFORM_SRC:.c=.o)
+PLATFORM_OBJS = $(PLATFORM_OBJSX:includes%=libs%)
+
+POSIX_SRC = $(wildcard includes/posix/*.c)
+POSIX_OBJSX = $(POSIX_SRC:.c=.o)
+POSIX_OBJS = $(POSIX_OBJSX:includes%=libs%)
 
 
 clean :
 	rm -f *.o
 	rm -f libs/*.o
-	rm -f libs/pi/*.o
-	rm -f libs/posix/*.o
+	rm -f libs/*/*.o
 	rm -f plugins/*/*.o
 	rm -f *.bin
 	rm -f *.elf
-	rm -f kernel.img
+	rm -f kernel.img pitracker
+
+libdirs:
+	mkdir -p libs/posix
+	mkdir -p libs/linux
+	mkdir -p libs/pi
 
 tune_o : tune.mid
 	$(LD) -s -r -o tune.o -b binary tune.mid
 
 vectors_o : vectors.s
-	$(AS) $(AOPS) vectors.s -o vectors.o
-
-string_o: includes/posix/string.h includes/posix/string.c
-	$(CC) $(COPS) -c includes/posix/string.c -o libs/posix/string.o
-
-unistd_o: includes/posix/unistd.h includes/posix/unistd.c
-	$(CC) $(COPS) -c includes/posix/unistd.c -o libs/posix/unistd.o
-
-malloc_o: includes/posix/malloc.h includes/posix/malloc.c
-	$(CC) $(COPS) -c includes/posix/malloc.c -o libs/posix/malloc.o
-
-assert_o: includes/posix/assert.h includes/posix/assert.c
-	$(CC) $(COPS) -c includes/posix/assert.c -o libs/posix/assert.o
-
-stdio_o: includes/posix/stdio.h includes/posix/stdio.c
-	$(CC) $(COPS) -c includes/posix/stdio.c -o libs/posix/stdio.o
-
-math_o: includes/posix/math.h includes/posix/math.c
-	$(CC) $(COPS) -c includes/posix/math.c -o libs/posix/math.o
-
-audio_o: includes/pi/audio.h includes/pi/audio.c
-	mkdir -p libs/pi
-	$(CC) $(COPS) -c includes/pi/audio.c -o libs/pi/audio.o
-
-hardware_o: includes/pi/hardware.h includes/pi/hardware.c
-	mkdir -p libs/pi
-	$(CC) $(COPS) -c includes/pi/hardware.c -o libs/pi/hardware.o
-
-uart_o: includes/pi/uart.h includes/pi/uart.c
-	mkdir -p libs/pi
-	$(CC) $(COPS) -c includes/pi/uart.c -o libs/pi/uart.o
+	$(AS) $(AFLAGS) vectors.s -o vectors.o
 
 lv2_o: includes/lv2.h includes/lv2.c
-	$(CC) $(COPS) -c includes/lv2.c -o libs/lv2.o
+	$(CC) $(CFLAGS) -c includes/lv2.c -o libs/lv2.o
 
-libdirs:
-	mkdir -p libs/posix
+posix: libdirs $(POSIX_OBJS)
 
-posix: libdirs math_o stdio_o assert_o malloc_o unistd_o string_o
+libs/posix/%.o: includes/posix/%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+platform: libdirs $(PLATFORM_OBJS)
+
+libs/linux/%.o: includes/linux/%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+libs/pi/%.o: includes/pi/%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+hardware: libdirs $(PLATFORM_OBJS)
 
 pitracker_o : pitracker.c
-	$(CC) $(COPS) -c pitracker.c -o pitracker.o
+	$(CC) $(CFLAGS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors_o pitracker_o tune_o posix audio_o hardware_o lv2_o uart_o plugins prepare_plugins
-	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o libs/pi/audio.o libs/pi/hardware.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors_o pitracker_o tune_o posix hardware lv2_o prepare_plugins
+	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o tune.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
 
-main_o : main.c
-	$(CC) $(COPS) -c main.c -o main.o
-
-
-pitracker.exe :  main_o pitracker_o tune_o posix audio_o hardware_o lv2_o uart_o plugins prepare_plugins
-	$(LD) main.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o libs/pi/audio.o libs/pi/hardware.o tune.o libs/posix/assert.o libs/posix/string.o libs/posix/math.o libs/posix/malloc.o libs/posix/stdio.o libs/posix/unistd.o libs/pi/uart.o -T memmap -o pitracker.elf
+pitracker_exe :  tune_o hardware lv2_o prepare_plugins
+	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o libs/lv2.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
 	$(OBJCOPY) pitracker.elf -O binary kernel.img
 	cp kernel.img SD_Card/
+
 
 piano : plugins/piano/piano.c
 	make -C plugins/piano

@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define PI 3.14159265
+
 extern void dummy (uint32_t);
 
 /*
@@ -67,11 +69,12 @@ float sindata[] = {
     -0.336889853392, -0.313681740399, -0.290284677254, -0.266712757475, -0.242980179903, -0.219101240157, -0.195090322016, -0.17096188876,
     -0.146730474455, -0.122410675199, -0.0980171403296, -0.0735645635997, -0.0490676743274, -0.0245412285229 }; 
 
-float sin(int x) {
-    // 256 => 2 pi rads
-    return sindata[x & 0xff];
+float sinf(float x) {
+    unsigned int index = 256.0 * x / (2 * PI);
+    return sindata[index & 0xff];
 }
 
+/*
 float square(int x) {
     return !!(x & 0x80);
 }
@@ -79,4 +82,5 @@ float square(int x) {
 float sawtooth(int x) {
     return (float)(x & 0xff) / 256;
 }
+*/
 #endif

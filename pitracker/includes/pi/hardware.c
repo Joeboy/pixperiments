@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <pi/registers.h>
+#include <pi/uart.h>
 #include <malloc.h>
 
 extern unsigned int bss_start;
@@ -35,11 +36,12 @@ void switch_init() {
     PUT32(GPFSEL1, ra);
 }
 
-uint32_t get_switch_state() {
+unsigned int get_switch_state() {
     return GET32(GPLEV0) & (1<<18); // I don't understand why this comes through on bit 18, but I don't much care.
 }
 
 void hardware_init() {
     setup_heap();
     for(unsigned int i=bss_start;i<bss_end;i+=4) PUT32(i,0);
+    uart_init(115200);
 }

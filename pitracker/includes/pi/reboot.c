@@ -1,4 +1,5 @@
 #include <pi/registers.h>
+#include <stdint.h>
 
 extern void PUT32 (uint32_t,uint32_t);
 extern uint32_t GET32 (uint32_t);
