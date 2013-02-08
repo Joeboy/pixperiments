@@ -86,7 +86,7 @@ int h_track(int dummy, uint32_t trackno, uint32_t length) {
 }
 
 int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsigned int v1, unsigned int v2) {
-    if (event_index>101) return 0; // bodge for unknown bug
+    if (event_index>1882) return 0; // bodged and of file
 //    printf("status_lsb: %x\n", command);
     event e;
     switch(command) {
@@ -258,7 +258,7 @@ int32_t notmain (uint32_t earlypc) {
                     note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, channel, frame_time, events[event_index].note_no, 0x1);
                 }
                 event_index++;
-                if (event_index > 100) event_index = counter = 0;
+                if (event_index > 0x752) event_index = counter = 0; // bodged end of file
             }
             if (all_notes_off_i) {
                 note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, 0, 1, all_notes_off_i++, 0x1);

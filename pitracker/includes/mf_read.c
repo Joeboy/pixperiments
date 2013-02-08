@@ -13,8 +13,6 @@
 ** express or implied warranty.
 */
 
-//#include "mf_priv.h"
-
 #define MThd 0x4d546864
 #define MTrk 0x4d54726b
 #define me_end_of_track            0x2f
@@ -236,42 +234,4 @@ static int scan_midi()
 }
 
 
-/* == Read Midi files
-*/
-
-/*
-****f*  readmidifile/mf_read
-* NAME
-*  mf_read
-*
-* SYNOPSIS
-*   error = mf_read(fname)
-*
-* FUNCTION
-*   Reads a midifile and calls the appropriate handlers for
-*   each event encountered.
-*
-* INPUTS
-*   fname - the midifile file name
-*
-* RESULTS
-*   error - 0 if everything went fine or an error code.
-*
-********
-*/
-
-//int mf_read(char *fname)
-//{
-//  int ret;
-//  if ((midi_file = fopen(fname, "rb")) == NULL) {
-//    h_error(79,"File not found");
-//    return -1;
-//  }
-//  ret = scan_midi();
-//  fclose(midi_file); midi_file = NULL;
-//
-//  free(chrbuf); chrbuf=NULL;   chrbuf_sz=0;
-//
-//  return ret;
-//}
 
