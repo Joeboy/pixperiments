@@ -102,7 +102,7 @@ int32_t audio_init(void) {
 
     uint32_t i;
     for (i=0;i<buf->dmas_per_buffer;i++) {
-        buf->dma_cb_chain[i].info   = BCM2708_DMA_S_INC | BCM2708_DMA_NO_WIDE_BURSTS | BCM2708_DMA_WAIT_RESP | BCM2708_DMA_D_DREQ | BCM2708_DMA_PER_MAP(5);
+        buf->dma_cb_chain[i].info   = BCM2708_DMA_S_INC | BCM2708_DMA_WAIT_RESP | BCM2708_DMA_D_DREQ | BCM2708_DMA_PER_MAP(5);
         buf->dma_cb_chain[i].src = (uint32_t)(buf->buffer + i * buf->dma_sz);
         buf->dma_cb_chain[i].dst = ((PWM_BASE+4*BCM2835_PWM_FIFO) & 0x00ffffff) | 0x7e000000; // physical address of fifo
         buf->dma_cb_chain[i].length = sizeof(uint32_t) * buf->dma_sz;
