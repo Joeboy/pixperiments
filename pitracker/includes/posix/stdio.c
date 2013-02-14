@@ -42,6 +42,27 @@ void dump_int_hex(int32_t v) {
 }
 
 
+void dump_int_dec(int32_t v) {
+    if (v < 0) {
+        putc('-');
+        v = -v;
+    }
+    unsigned int digits = 1;
+    unsigned int maxval = 10;
+    while (v >= maxval) {
+        maxval *= 10;
+        digits++;
+    }
+
+    for (unsigned int i=0;i<digits;i++) {
+        maxval /= 10;
+        unsigned int digit_val = (float)v / maxval; // Bodge
+        putc(0x30 + digit_val);
+        v -= digit_val * maxval;
+    }
+}
+
+
 void printf(const char *s, ...) {
     // This is a really, really sketchy implementation
     // No type checking / error handling.
@@ -80,7 +101,6 @@ void printf(const char *s, ...) {
         if (c == '%') state = 1;
         n++;
     }
-    unsigned int argi = 0;
     n = 0;
     va_start(args, num_args);
     state = 0;
@@ -91,19 +111,19 @@ void printf(const char *s, ...) {
                 case 'c':
                     putc((char)va_arg(args, uint32_t));
                     state = 0;
-                    argi++;
+                    break;
                 case 'd':
-                    dump_int_hex(va_arg(args, uint32_t));
+                    dump_int_dec(va_arg(args, uint32_t));
                     state = 0;
-                    argi++;
+                    break;
                 case 'x':
                     dump_int_hex(va_arg(args, uint32_t));
                     state = 0;
-                    argi++;
+                    break;
                 case 's':
                     print_literal(va_arg(args, const char*));
                     state = 0;
-                    argi++;
+                    break;
                 default:
                     break;
             }

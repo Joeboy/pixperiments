@@ -72,10 +72,10 @@ int h_error(unsigned int code, char* message) {
     return 0;
 }
 
-unsigned int ppqn; // ticks per quarter note for midi file
+//unsigned int ppqn; // ticks per quarter note for midi file
 static int h_header (short type, short ntracks, short division) {
 //    dump_int_hex(division); // 480
-    ppqn = division;
+//    ppqn = division;
     return 0;
 }
 
@@ -143,14 +143,12 @@ int32_t notmain (uint32_t earlypc) {
     uint32_t inkey;
     unsigned int switch_countdown = 0; // switch debouncing timer
     uint32_t counter=0;
-    unsigned int tune_playing = 1;
     unsigned int all_notes_off_i = 0;
     unsigned int led_timer = 0;
     unsigned int plugin_id = 0;
 
     printf("\r\nPiTracker console\r\n");
-    printf("Use keys 1-3 to switch between plugins\r\n");
-    printf("Q turns tune off\r\n");
+    printf("Samplerate: %d\r\n", samplerate);
 
     lv2_port output_left, output_right, midi_in;
     output_left.id = 1;
@@ -173,6 +171,7 @@ int32_t notmain (uint32_t earlypc) {
     scan_midi();
     // reuse event_index for reading the buffer we've just written
     event_index = 0;
+    unsigned int midi_stream_index = 0;
 
     lv2_atom_forge_set_buffer(&forge,
                               midi_in.buffer,
@@ -181,6 +180,12 @@ int32_t notmain (uint32_t earlypc) {
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
+    int buffer_full = 0;
+    
+    midi_parser * parser = new_midi_parser(&forge);
+    unsigned int stream_msecs = 0;
+    unsigned int msecs;
+    uint8_t midi_byte;
 
     while (1) {
         if (switch_countdown) switch_countdown--;
@@ -216,16 +221,6 @@ int32_t notmain (uint32_t earlypc) {
                     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
                     lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
                     break;
-                case 0x71:
-                    tune_playing = !tune_playing;
-                    if (tune_playing) {
-                        printf("Tune on\r\n");
-                        // TODO
-                    } else {
-                        printf("Tune off\r\n");
-                        all_notes_off_i = 1;
-                    }
-                    break;
                 case 0x0d:
                     printf("\r\n");
                     break;
@@ -237,6 +232,23 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
+        // Not sure why 500 rather than 1000 here. Something is screwey:
+        msecs = (float)500 * (float)counter * (float)LV2_AUDIO_BUFFER_SIZE / (float)samplerate;
+        while (stream_msecs <= msecs) {
+            uint8_t midi_byte = (uint8_t)*(&_binary_tune_mid_start + midi_stream_index);
+            //printf("sending byte: %x|\r\n", midi_byte);
+            stream_msecs = process_midi_byte(parser, midi_byte);
+            midi_stream_index++;
+            //printf("msecs=%d, stream_msecs=%d\r\n", msecs, stream_msecs);
+        }
+//        printf("======\r\n");
+
+//        if (msecs > 1000 + old_msecs) {
+//            printf("%d, %d\r\n", msecs, stream_msecs);
+//            old_msecs = msecs;
+//        }
+
+
         if (audio_buffer_free_space() > LV2_AUDIO_BUFFER_SIZE * 2) {
             lv2_atom_forge_set_buffer(&forge,
                                       midi_in.buffer,
@@ -247,7 +259,7 @@ int32_t notmain (uint32_t earlypc) {
             uint32_t frame_time = 1; // TODO
 
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
-            while (tune_playing && events[event_index].time == counter) {
+            while (events[event_index].time == counter) {
                 if (events[event_index].type == noteon) {
                     led_on();
                     led_timer = 1;

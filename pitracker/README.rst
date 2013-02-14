@@ -25,7 +25,6 @@ Things to do:
 -------------
  * Read hardware MIDI input. We have uarts so shouldn't be too hard. I predict
    the main challenge will be digging out the obsolescent hardware.
- * Play MIDI files from the SD card, rather than linking them into the kernel.
  * Implement LV2 plugins via dynamic linkage, so you can just drop plugins
    onto the SD.
  * Implement reading files from the SD card, so that the previous two things
@@ -33,6 +32,5 @@ Things to do:
  * Port to other platforms, eg. TI Stellaris. Make Linux port work properly.
  * Unbodge stereo / sample rate.
  * Implement more midi stuff like pitch bending, channels etc.
- * Test some more midi files.
  * Effects plugins.
 

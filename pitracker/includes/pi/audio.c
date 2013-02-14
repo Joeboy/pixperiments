@@ -81,9 +81,7 @@ int32_t audio_init(void) {
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL, 0);
 
     uint32_t samplerate = 500000000.0 / idiv / range / 2; // 2 channels
-    printf("samplerate=");
-    dump_int_hex(samplerate);
-    printf("\r\n");
+
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_DIV, PM_PASSWORD | (idiv<<12));
     
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_CNTL,

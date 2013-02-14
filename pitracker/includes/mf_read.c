@@ -12,6 +12,7 @@
 ** of this software for any purpose. It is provided "as is" without
 ** express or implied warranty.
 */
+#include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 
 #define MThd 0x4d546864
 #define MTrk 0x4d54726b
@@ -234,4 +235,177 @@ static int scan_midi()
 }
 
 
+uint32_t make_number(uint8_t* buf, unsigned int num_bytes) {
+    // Assemble correctly ordered 32 bit number from byte buffer
+    uint32_t number = 0;
+    for (unsigned int i=0;i<num_bytes;i++) number = number << 8 | buf[i];
+    return number;
+}
+
+enum midi_parse_state { midi_start, midi_file_header, midi_header_length,
+                        midi_file_format, midi_num_tracks, midi_get_tpqn,
+                        midi_track_header, midi_track_length, midi_get_timedelta,
+                        midi_event, midi_size, midi_metacommand_command,
+                        midi_command };
+
+uint8_t midi_byte_buffer[8];
+
+typedef struct {
+    unsigned int num_tracks;
+    unsigned int tpqn;
+    unsigned int mpqn;
+    LV2_Atom_Forge *forge;
+    unsigned int uspt; // Microseconds per tick
+} midi_parser;
+
+
+void refresh_parser_timing(midi_parser *parser) {
+    parser->uspt =  (float)parser->mpqn / (float)parser->tpqn;
+    printf("us per tick: %x\r\n", parser->uspt);
+}
+
+midi_parser *new_midi_parser(LV2_Atom_Forge *forge) {
+    midi_parser *parser = malloc(sizeof(midi_parser));
+    parser->forge = forge;
+    parser->mpqn = 500000;
+    return parser;
+}
+
+unsigned int process_midi_byte(midi_parser *parser, uint8_t byte) {
+    // Fill an atom buffer (TODO)
+    // Return the number of microseconds elapsed since track start
+    static enum midi_parse_state state = midi_start;
+    static unsigned int bytes_needed = 0;
+    static unsigned int byte_buffer_index = 0;
+    static unsigned int track_length;
+    static unsigned int timedelta;
+    static uint8_t command;
+    static unsigned int event_size;
+    static unsigned int chan;
+    static unsigned int total_msecs = 0;
+
+//    printf("%x\r\n", byte);
+    if (bytes_needed >0 ) {
+        midi_byte_buffer[byte_buffer_index] = byte;
+        bytes_needed--;
+        byte_buffer_index++;
+        if (bytes_needed > 0) return total_msecs;
+    }
+//    printf("state=%x\r\n", state);
+    switch(state) {
+        case midi_start:
+            state = midi_file_header;
+            midi_byte_buffer[byte_buffer_index++] = byte;
+            bytes_needed = 3;
+            break;
+        case midi_file_header:
+            if (make_number(midi_byte_buffer, 4) != MThd) {
+                printf("Bad file header!\r\n");
+            }
+            state = midi_header_length;
+            bytes_needed = 4;
+            byte_buffer_index = 0;
+            break;
+        case midi_header_length:
+            if (make_number(midi_byte_buffer, 4) != 6) {
+                printf("Bad track header length!\r\n");
+            }
+            state = midi_file_format;
+            bytes_needed = 2;
+            byte_buffer_index = 0;
+            break;
+        case midi_file_format:
+            if (make_number(midi_byte_buffer, 2) != 0) {
+                printf("This code is written for single track midi files, so yours might not work!\r\n");
+            }
+            state = midi_num_tracks;
+            bytes_needed = 2;
+            byte_buffer_index = 0;
+            break;
+        case midi_num_tracks:
+            parser->num_tracks = make_number(midi_byte_buffer, 2);
+            state = midi_get_tpqn;
+            bytes_needed = 2;
+            byte_buffer_index = 0;
+            break;
+        case midi_get_tpqn: // Ticks per quarter note
+            parser->tpqn = make_number(midi_byte_buffer, 2);
+            printf("tpqn: %x\r\n", parser->tpqn);
+            refresh_parser_timing(parser);
+            state = midi_track_header;
+            bytes_needed = 4;
+            byte_buffer_index = 0;
+            break;
+        case midi_track_header:
+            if (make_number(midi_byte_buffer, 4) != MTrk) {
+                printf("Bad track header!\r\n");
+            }
+            state = midi_track_length;
+            bytes_needed = 4;
+            byte_buffer_index = 0;
+            break;
+        case midi_track_length:
+            track_length = make_number(midi_byte_buffer, 4);
+            state = midi_get_timedelta;
+            timedelta = 0;
+            byte_buffer_index = 0;
+            break;
+        case midi_get_timedelta:
+            timedelta = (timedelta << 7) | (byte & 0x7f);
+//            printf("td byte: %x\r\n", byte);
+            if (!(byte & 0x80)) {
+                total_msecs += parser->uspt * timedelta / 1000;
+                state = midi_event;
+            }
+            break;
+        case midi_event:
+//            printf("td = %x\r\n", timedelta);
+            if (byte == 0xff) {
+                // metacommand
+                state = midi_metacommand_command;
+            } else if (byte == 0xf0) {
+                // sysex
+                command = 0xf0;
+                event_size = 0;
+                state = midi_size;
+            } else if (byte == 0xf7) {
+                // continued sysex
+                command = 0xf7;
+                event_size = 0;
+                state = midi_size;
+            } else if (byte > 0xf0) {
+                printf("Unexpected byte in midi stream: %x\r\n", byte);
+            } else {
+//                printf("Got bare midi cmd\r\n");
+                command = byte & 0xf0;
+                chan = 1+(byte & 0xf);
+                bytes_needed = event_size = numparms(byte);
+                byte_buffer_index = 0;
+                state = midi_command;
+            }
+            break;
+        case midi_metacommand_command:
+            command = byte;
+            event_size = 0;
+            state = midi_size;
+            break;
+        case midi_size:
+            event_size = (event_size << 7) | (byte & 0x7f);
+            if (!(byte & 0x80)) {
+                bytes_needed = event_size;
+                state = midi_command;  
+            }
+            break;
+        case midi_command:
+            printf("cmd=%x, size=%d\r\n", command, event_size);
+            timedelta = 0;
+            state = midi_get_timedelta;
+            byte_buffer_index = 0;
+            break;
+        default:
+            printf("This shouldn't happen\r\n");
+            break;
+    }
+    return total_msecs;
+}
 

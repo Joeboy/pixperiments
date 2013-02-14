@@ -47,19 +47,19 @@ clean :
 	rm -f *.elf
 	rm -f kernel.img pitracker
 
-libdirs:
-	mkdir -p libs/posix
-	mkdir -p libs/linux
-	mkdir -p libs/pi
+libdirs : libs/posix libs/linux libs/pi
+	mkdir -p $^
 
-tune_o : tune.mid
-	$(LD) -s -r -o tune.o -b binary tune.mid
+tune.o : tune.mid
+	$(LD) -s -r -o $@ -b binary $^
 
-vectors_o : vectors.s
-	$(AS) $(AFLAGS) vectors.s -o vectors.o
+vectors.o : vectors.s
+	$(AS) $(AFLAGS) $^ -o $@
 
-lv2_o: includes/lv2.h includes/lv2.c
-	$(CC) $(CFLAGS) -c includes/lv2.c -o libs/lv2.o
+libs/lv2.o: includes/lv2.c
+
+libs/%.o: includes/%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 posix: libdirs $(POSIX_OBJS)
 
@@ -76,13 +76,13 @@ libs/pi/%.o: includes/pi/%.c
 
 hardware: libdirs $(PLATFORM_OBJS)
 
-pitracker_o : pitracker.c
+pitracker.o : pitracker.c includes/mf_read.c
 	$(CC) $(CFLAGS) -c pitracker.c -o pitracker.o
 
-pitracker.elf : memmap vectors_o pitracker_o tune_o posix hardware lv2_o prepare_plugins
+pitracker.elf : memmap vectors.o pitracker.o tune.o posix hardware libs/lv2.o prepare_plugins
 	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o tune.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
 
-pitracker_exe :  tune_o hardware lv2_o prepare_plugins
+pitracker_exe :  tune.o hardware libs/lv2.o prepare_plugins
 	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o libs/lv2.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
@@ -90,13 +90,13 @@ kernel_img : pitracker.elf
 	cp kernel.img SD_Card/
 
 
-piano : plugins/piano/piano.c
+piano : plugins/piano/piano.o
 	make -C plugins/piano
 
-sawtooth : plugins/piano/piano.c
+sawtooth : plugins/piano/piano.o
 	make -C plugins/sawtooth
 
-organ : plugins/organ/organ.c
+organ : plugins/organ/organ.o
 	make -C plugins/organ
 
 plugins : piano sawtooth organ
