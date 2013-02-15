@@ -50,40 +50,27 @@ clean :
 libdirs : libs/posix libs/linux libs/pi
 	mkdir -p $^
 
+pitracker.o : pitracker.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
 tune.o : tune.mid
 	$(LD) -s -r -o $@ -b binary $^
 
 vectors.o : vectors.s
 	$(AS) $(AFLAGS) $^ -o $@
 
-libs/lv2.o: includes/lv2.c
-
 libs/%.o: includes/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 posix: libdirs $(POSIX_OBJS)
 
-libs/posix/%.o: includes/posix/%.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
 platform: libdirs $(PLATFORM_OBJS)
 
-libs/linux/%.o: includes/linux/%.c
-	$(CC) $(CFLAGS) -c $^ -o $@
+pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform libs/lv2.o libs/mf_read.o prepare_plugins
+	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o libs/mf_read.o tune.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
 
-libs/pi/%.o: includes/pi/%.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
-hardware: libdirs $(PLATFORM_OBJS)
-
-pitracker.o : pitracker.c includes/mf_read.c
-	$(CC) $(CFLAGS) -c pitracker.c -o pitracker.o
-
-pitracker.elf : memmap vectors.o pitracker.o tune.o posix hardware libs/lv2.o prepare_plugins
-	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o libs/lv2.o tune.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
-
-pitracker_exe :  tune.o hardware libs/lv2.o prepare_plugins
-	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o libs/lv2.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
+pitracker_exe :  tune.o platform libs/lv2.o libs/mf_read.o prepare_plugins
+	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o libs/lv2.o libs/mf_read.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
 	$(OBJCOPY) pitracker.elf -O binary kernel.img

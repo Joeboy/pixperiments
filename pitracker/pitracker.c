@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include "mf_read.h"
+
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
-#include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 
 #ifdef RASPBERRY_PI
 #include <pi/audio.h>
@@ -27,25 +27,12 @@
 
 #include <lv2.h>
 
-#define LV2_AUDIO_BUFFER_SIZE 0x20
+#define LV2_AUDIO_BUFFER_SIZE 0x40
 #define LV2_MIDI_BUFFER_SIZE 256
 
-static LV2_URID midi_midiEvent;
-
-enum event_type { noteon, noteoff };
-
-typedef struct {
-    uint32_t time;
-    uint32_t note_no;
-    uint32_t velocity;
-    enum event_type type;
-} event;
-
-static event* events;
-
-static uint32_t event_index = 0;
 
 enum lv2_port_type { audio, atom };
+
 typedef struct {
     enum lv2_port_type type;
     uint32_t id;
@@ -56,81 +43,6 @@ typedef struct {
 
 // Hack around our (hopefully temporary) lack of file IO
 extern uint8_t _binary_tune_mid_start;
-extern uint8_t _binary_tune_mid_size;
-
-uint32_t fp = 0; // midi "file pointer"
-
-int midi_fgetc(uint8_t *dummy) {
-    uint8_t x = *(&_binary_tune_mid_start + fp);
-    fp++;
-    return x;
-}
-
-int h_error(unsigned int code, char* message) {
-    printf("Error: %d\r\n", code);
-    printf("%s\r\n", message);
-    return 0;
-}
-
-//unsigned int ppqn; // ticks per quarter note for midi file
-static int h_header (short type, short ntracks, short division) {
-//    dump_int_hex(division); // 480
-//    ppqn = division;
-    return 0;
-}
-
-
-int h_track(int dummy, uint32_t trackno, uint32_t length) {
-    events = malloc(sizeof(event) * length);
-    return 0;
-}
-
-int h_midi_event(long track_time, unsigned int command, unsigned int chan, unsigned int v1, unsigned int v2) {
-    if (event_index>1882) return 0; // bodged and of file
-//    printf("status_lsb: %x\n", command);
-    event e;
-    switch(command) {
-        case 0x90:
-            e.time = (uint32_t)track_time * 3; // TODO: time this relative to ppqn
-//            dump_int_hex(e.time);
-            e.note_no = v1-40;
-            e.type = noteon;
-            e.velocity = v2;
-            events[event_index] = e;
-            event_index++;
-            break;
-        case 0x80:
-            e.time = (uint32_t)track_time * 3;
-            e.note_no = v1-40;
-            e.type = noteoff;
-            events[event_index] = e;
-            event_index++;
-            break;
-//        case 0x51:
-//            printf("tempo!");
-//            dump_int_hex(v1);
-//            dump_int_hex(v2);
-//            printf("\r\n");
-        default:
-            break;
-    }
-    return 0;
-}
-
-#include "mf_read.c"
-
-
-static void note_on_or_off(unsigned int command, uint8_t channel,
-                           uint32_t frame_time, uint8_t note_no,
-                           uint8_t velocity) {
-    uint8_t midi_ev[3];
-    midi_ev[0] = command | channel;
-    midi_ev[1] = note_no;
-    midi_ev[2] = velocity;
-    lv2_atom_forge_frame_time(&forge, frame_time++);
-    lv2_atom_forge_atom(&forge, sizeof(midi_ev), midi_midiEvent);
-    lv2_atom_forge_write(&forge, &midi_ev, 3);
-}
 
 
 int32_t notmain (uint32_t earlypc) {
@@ -140,15 +52,18 @@ int32_t notmain (uint32_t earlypc) {
     led_init();
     switch_init();
 
-    uint32_t inkey;
-    unsigned int switch_countdown = 0; // switch debouncing timer
-    uint32_t counter=0;
-    unsigned int all_notes_off_i = 0;
-    unsigned int led_timer = 0;
-    unsigned int plugin_id = 0;
-
     printf("\r\nPiTracker console\r\n");
     printf("Samplerate: %d\r\n", samplerate);
+
+    uint32_t inkey;
+    unsigned int switch_countdown = 0; // switch debouncing timer
+    unsigned int plugin_id = 0;
+    uint32_t counter=0;
+    unsigned int midi_stream_index = 0;
+    unsigned int stream_msecs = 0;
+    unsigned int msecs = 0;
+    LV2_Atom_Forge_Frame midi_seq_frame;
+    int buffer_processed = 0;
 
     lv2_port output_left, output_right, midi_in;
     output_left.id = 1;
@@ -164,28 +79,16 @@ int32_t notmain (uint32_t earlypc) {
     midi_in.buffer = malloc(sizeof(uint8_t) * LV2_MIDI_BUFFER_SIZE);
     midi_in.buffer_sz = LV2_MIDI_BUFFER_SIZE;
 
-    midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
-    LV2_Atom_Forge_Frame midi_seq_frame;
-
-    event_index = 0;
-    scan_midi();
-    // reuse event_index for reading the buffer we've just written
-    event_index = 0;
-    unsigned int midi_stream_index = 0;
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
 
     lv2_atom_forge_set_buffer(&forge,
                               midi_in.buffer,
                               LV2_MIDI_BUFFER_SIZE);
-
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
-    int buffer_full = 0;
+    lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
     
-    midi_parser * parser = new_midi_parser(&forge);
-    unsigned int stream_msecs = 0;
-    unsigned int msecs;
-    uint8_t midi_byte;
+    midi_parser *parser = new_midi_parser(&forge);
 
     while (1) {
         if (switch_countdown) switch_countdown--;
@@ -232,62 +135,27 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
-        // Not sure why 500 rather than 1000 here. Something is screwey:
-        msecs = (float)500 * (float)counter * (float)LV2_AUDIO_BUFFER_SIZE / (float)samplerate;
-        while (stream_msecs <= msecs) {
-            uint8_t midi_byte = (uint8_t)*(&_binary_tune_mid_start + midi_stream_index);
-            //printf("sending byte: %x|\r\n", midi_byte);
-            stream_msecs = process_midi_byte(parser, midi_byte);
-            midi_stream_index++;
-            //printf("msecs=%d, stream_msecs=%d\r\n", msecs, stream_msecs);
-        }
-//        printf("======\r\n");
 
-//        if (msecs > 1000 + old_msecs) {
-//            printf("%d, %d\r\n", msecs, stream_msecs);
-//            old_msecs = msecs;
-//        }
+        if (!buffer_processed) {
+            while (stream_msecs <= msecs) {
+                stream_msecs = process_midi_byte(parser, (uint8_t)*(&_binary_tune_mid_start + midi_stream_index++));
+            }
 
-
-        if (audio_buffer_free_space() > LV2_AUDIO_BUFFER_SIZE * 2) {
+            lv2_atom_forge_pop(&forge, &midi_seq_frame);
+            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
             lv2_atom_forge_set_buffer(&forge,
                                       midi_in.buffer,
                                       LV2_MIDI_BUFFER_SIZE);
-//            printf("feeding buffer\r\n");
-            forge.offset = 0;
-            uint8_t channel = 0;
-            uint32_t frame_time = 1; // TODO
-
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
-            while (events[event_index].time == counter) {
-                if (events[event_index].type == noteon) {
-                    led_on();
-                    led_timer = 1;
-                    note_on_or_off(LV2_MIDI_MSG_NOTE_ON, channel, frame_time, events[event_index].note_no, events[event_index].velocity);
-                } else if (events[event_index].type == noteoff) {
-                    led_off();
-                    led_timer = 1;
-                    note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, channel, frame_time, events[event_index].note_no, 0x1);
-                }
-                event_index++;
-                if (event_index > 0x752) event_index = counter = 0; // bodged end of file
-            }
-            if (all_notes_off_i) {
-                note_on_or_off(LV2_MIDI_MSG_NOTE_OFF, 0, 1, all_notes_off_i++, 0x1);
-                if (all_notes_off_i == 127) all_notes_off_i = 0;
-            }
-            if (led_timer) {
-                if (led_timer++ > 10) {
-                    led_timer = 0;
-                    led_off();
-                }
-            }
-            lv2_atom_forge_pop(&forge, &midi_seq_frame);
-            
-            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
+            buffer_processed = 1;
+        }
 
+        if (buffer_processed && audio_buffer_free_space() > LV2_AUDIO_BUFFER_SIZE * 2) {
             audio_buffer_write(output_left.buffer, output_right.buffer, output_left.buffer_sz);
+            buffer_processed = 0;
             counter++;
+            // Not sure why 500 rather than 1000 here. Something is screwey:
+            msecs = (float)500 * (float)counter * (float)LV2_AUDIO_BUFFER_SIZE / (float)samplerate;
         }
     }
 }
