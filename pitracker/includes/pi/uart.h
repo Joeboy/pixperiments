@@ -22,11 +22,11 @@
 #define GPPUDCLK0   0x20200098
 
 
-void uart_init(unsigned int baudrate);
+void uart_init();
 
 uint32_t uart_input_ready();
 uint32_t uart_read();
-uint32_t getc();
-void putc (uint32_t c, ...);
+int getc();
+int putc (uint32_t c, ...);
 
 #endif

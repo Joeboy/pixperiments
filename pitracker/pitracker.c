@@ -3,6 +3,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <config.h>
 
 #include "mf_read.h"
 
@@ -14,7 +15,6 @@
 #include <pi/uart.h>
 #include <pi/kbhit.h>
 #include <pi/hardware.h>
-#define EOF -1
 #define stdout 0
 #endif
 
@@ -41,9 +41,6 @@ typedef struct {
 } lv2_port;
 
 
-// Hack around our (hopefully temporary) lack of file IO
-extern uint8_t _binary_tune_mid_start;
-
 
 int32_t notmain (uint32_t earlypc) {
     hardware_init();
@@ -56,12 +53,8 @@ int32_t notmain (uint32_t earlypc) {
     printf("Samplerate: %d\r\n", samplerate);
 
     uint32_t inkey;
-    unsigned int switch_countdown = 0; // switch debouncing timer
     unsigned int plugin_id = 0;
     uint32_t counter=0;
-    unsigned int midi_stream_index = 0;
-    unsigned int stream_msecs = 0;
-    unsigned int msecs = 0;
     LV2_Atom_Forge_Frame midi_seq_frame;
     int buffer_processed = 0;
 
@@ -88,23 +81,13 @@ int32_t notmain (uint32_t earlypc) {
                               LV2_MIDI_BUFFER_SIZE);
     lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
     
-    midi_parser *parser = new_midi_parser(&forge);
-
+    init_midi_source(&forge);
+    
     while (1) {
-        if (switch_countdown) switch_countdown--;
-        else {
-            if (get_switch_state()) {
-                switch_countdown = 500000;
-                plugin_id++;
-                if (plugin_id > 2) plugin_id = 0;
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
-            }
-        }
-
+#ifdef DEBUG
         if(kbhit()) {
             inkey = readch();
-//            printf("%x", inkey);
+            //printf("%x", inkey);
             switch(inkey) {
                 case 0x03:
 #ifdef RASPBERRY_PI
@@ -135,11 +118,10 @@ int32_t notmain (uint32_t earlypc) {
                     break;
             }
         }
+#endif
 
         if (!buffer_processed) {
-            while (stream_msecs <= msecs) {
-                stream_msecs = process_midi_byte(parser, (uint8_t)*(&_binary_tune_mid_start + midi_stream_index++));
-            }
+            forge_midi_input();
 
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
@@ -154,8 +136,6 @@ int32_t notmain (uint32_t earlypc) {
             audio_buffer_write(output_left.buffer, output_right.buffer, output_left.buffer_sz);
             buffer_processed = 0;
             counter++;
-            // Not sure why 500 rather than 1000 here. Something is screwey:
-            msecs = (float)500 * (float)counter * (float)LV2_AUDIO_BUFFER_SIZE / (float)samplerate;
         }
     }
 }

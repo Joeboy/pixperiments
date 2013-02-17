@@ -3,6 +3,7 @@
 #include <pi/uart.h>
 #include <malloc.h>
 
+
 extern unsigned int bss_start;
 extern unsigned int bss_end;
 extern unsigned int GET32(uint32_t);
@@ -40,8 +41,22 @@ unsigned int get_switch_state() {
     return GET32(GPLEV0) & (1<<18); // I don't understand why this comes through on bit 18, but I don't much care.
 }
 
+static uint32_t timer_ms_base; // 'zero' time
+
+uint32_t get_timer_ms() {
+    // Return ms elapsed since timer_ms_base. This is currently approximate - should do the math properly.
+    return ((((uint64_t)GET32(SYSTIMERCHI) << 32) | (uint64_t)GET32(SYSTIMERCLO)) >> 10) - timer_ms_base;
+}
+
+
+uint32_t reset_timer_ms() {
+    timer_ms_base = 0;
+    timer_ms_base = get_timer_ms();
+}
+
+
 void hardware_init() {
     setup_heap();
     for(unsigned int i=bss_start;i<bss_end;i+=4) PUT32(i,0);
-    uart_init(115200);
+    uart_init();
 }

@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#include <config.h>
+
 
 void print_literal(const char *s) {
     while (*s) putc(*s++);
@@ -68,6 +70,9 @@ void printf(const char *s, ...) {
     // No type checking / error handling.
     // Only handles %c, %x and %d (badly) so far. Let's fix it up as we go along.
     // Handle with care!
+    
+#ifdef DEBUG
+
     unsigned int n=0, num_args=0;
     unsigned int state = 0;
     char c;
@@ -134,5 +139,6 @@ void printf(const char *s, ...) {
         n++;
     }
     va_end(args);
+#endif
 }
 

@@ -66,12 +66,29 @@
 #define BCM2835_EMPT1 0x2
 #define BCM2835_FULL1 0x1
 
-#define PM_PASSWORD 0x5A000000 
-
 #define GPFSEL1 0x20200004
 #define GPSET0  0x2020001C // Set and clear seem to me like they're the wrong way round, but all the docs have them this way round...
 #define GPCLR0  0x20200028
 #define GPLEV0 0x20200034
+
+#define GPPUD       0x20200094
+#define GPPUDCLK0   0x20200098
+
+// UARTey stuff
+#define AUX_ENABLES     0x20215004
+#define AUX_MU_IO_REG   0x20215040
+#define AUX_MU_IER_REG  0x20215044
+#define AUX_MU_IIR_REG  0x20215048
+#define AUX_MU_LCR_REG  0x2021504C
+#define AUX_MU_MCR_REG  0x20215050
+#define AUX_MU_LSR_REG  0x20215054
+#define AUX_MU_MSR_REG  0x20215058
+#define AUX_MU_SCRATCH  0x2021505C
+#define AUX_MU_CNTL_REG 0x20215060
+#define AUX_MU_STAT_REG 0x20215064
+#define AUX_MU_BAUD_REG 0x20215068
+
+#define PM_PASSWORD 0x5A000000 
 
 // Watchdog registers
 #define PM_BASE                     (BCM2708_PERI_BASE + 0x100000) /* Power Management, Reset controller and Watchdog registers */
@@ -80,6 +97,9 @@
 #define PM_WDOG_TIME_SET            0x000fffff
 #define PM_RSTC_WRCFG_CLR           0xffffffcf
 #define PM_RSTC_WRCFG_FULL_RESET    0x00000020
+
+#define SYSTIMERCLO 0x20003004
+#define SYSTIMERCHI 0x20003008
 
 #define DMA_CONTROLLER_BASE 0x20007000
 #define DMA5_CNTL_BASE DMA_CONTROLLER_BASE + 0x500

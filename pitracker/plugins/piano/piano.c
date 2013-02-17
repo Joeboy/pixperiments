@@ -9,7 +9,7 @@
 #include <lv2/lv2plug.in/ns/ext/midi/midi.h>
 #include <lv2/lv2plug.in/ns/ext/urid/urid.h>
 
-#define NUM_VOICES 6
+#define NUM_VOICES 7
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
 
 #define OUTPUT_LEFT 1
@@ -137,7 +137,7 @@ static float envelope(voice *vp) {
     float attack = 0.9;
     uint32_t decay_time = 5000;
     float sustain = 0.2;
-    uint32_t release_time = 10000;
+    uint32_t release_time = 20000;
     voice v = *vp;
 
     if (v.state == on) {
@@ -168,7 +168,7 @@ static float waveform(voice v, double sample_rate) {
     float s2 = 0;//square((2 * 3.141 * (uint32_t)v.freq * 2 * v.time) / (float)sample_rate);
     uint32_t p1 = 10000;
     if (v.time < p1) {
-        return s1 + 0.07 * s2 * (1 - ((float)v.time / p1));
+        return s1;// + 0.07 * s2 * (1 - ((float)v.time / p1));
     }
     return s1;
 }
