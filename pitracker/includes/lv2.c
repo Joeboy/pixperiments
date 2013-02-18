@@ -5,7 +5,7 @@
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 
 #include <pi/audio.h>
-#include "lv2.h"
+#include <lv2.h>
 
 typedef struct urid_map_entry {
     const char* uri;
@@ -97,5 +97,20 @@ void lv2_init(uint32_t sample_rate) {
     lv2_features[2] = NULL ;
 	lv2_atom_forge_init(&forge, &lv2_urid_map);
     load_lv2_descriptors(sample_rate);
+}
+
+
+lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t id) {
+    lv2_port *port = malloc(sizeof(lv2_port));
+    port->type = type;
+    port->id = id;
+    if (type == lv2_audio_port) {
+        port->buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
+        port->buffer_sz = LV2_AUDIO_BUFFER_SIZE;
+    } else if (type == lv2_atom_port) {
+        port->buffer = malloc(sizeof(uint8_t) * LV2_ATOM_BUFFER_SIZE);
+        port->buffer_sz = LV2_ATOM_BUFFER_SIZE;
+    }
+    return port;
 }
 

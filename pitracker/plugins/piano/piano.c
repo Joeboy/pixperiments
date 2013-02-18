@@ -165,10 +165,9 @@ static float waveform(voice v, double sample_rate) {
     s1 *= (float)1-0.95*(float)x/tremolo_period;
     x += (direction ? 1 : -1);
     if (x == 0 || x > tremolo_period) direction = !direction;
-    float s2 = 0;//square((2 * 3.141 * (uint32_t)v.freq * 2 * v.time) / (float)sample_rate);
     uint32_t p1 = 10000;
     if (v.time < p1) {
-        return s1;// + 0.07 * s2 * (1 - ((float)v.time / p1));
+        return s1;
     }
     return s1;
 }

@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <config.h>
 
-#include "mf_read.h"
-
 #include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 
 #ifdef RASPBERRY_PI
@@ -25,21 +23,8 @@
 #include <stdlib.h>
 #endif
 
+#include <mf_read.h>
 #include <lv2.h>
-
-#define LV2_AUDIO_BUFFER_SIZE 0x40
-#define LV2_MIDI_BUFFER_SIZE 256
-
-
-enum lv2_port_type { audio, atom };
-
-typedef struct {
-    enum lv2_port_type type;
-    uint32_t id;
-    void *buffer;
-    size_t buffer_sz;
-} lv2_port;
-
 
 
 int32_t notmain (uint32_t earlypc) {
@@ -58,27 +43,17 @@ int32_t notmain (uint32_t earlypc) {
     LV2_Atom_Forge_Frame midi_seq_frame;
     int buffer_processed = 0;
 
-    lv2_port output_left, output_right, midi_in;
-    output_left.id = 1;
-    output_left.type = audio;
-    output_left.buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
-    output_left.buffer_sz = LV2_AUDIO_BUFFER_SIZE;
-    output_right.id = 2;
-    output_right.type = audio;
-    output_right.buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
-    output_right.buffer_sz = LV2_AUDIO_BUFFER_SIZE;
-    midi_in.id = 3;
-    midi_in.type = atom;
-    midi_in.buffer = malloc(sizeof(uint8_t) * LV2_MIDI_BUFFER_SIZE);
-    midi_in.buffer_sz = LV2_MIDI_BUFFER_SIZE;
+    lv2_port *output_left = new_lv2_port(lv2_audio_port, 1);
+    lv2_port *output_right = new_lv2_port(lv2_audio_port, 2);
+    lv2_port *midi_in = new_lv2_port(lv2_atom_port, 3);
 
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in->id, midi_in->buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left->id, output_left->buffer);
+    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right->id, output_right->buffer);
 
     lv2_atom_forge_set_buffer(&forge,
-                              midi_in.buffer,
-                              LV2_MIDI_BUFFER_SIZE);
+                              midi_in->buffer,
+                              LV2_ATOM_BUFFER_SIZE);
     lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
     
     init_midi_source(&forge);
@@ -103,9 +78,9 @@ int32_t notmain (uint32_t earlypc) {
                 case 0x31:
                     plugin_id++;
                     if (plugin_id > 2) plugin_id = 0;
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in.id, midi_in.buffer);
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left.id, output_left.buffer);
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right.id, output_right.buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in->id, midi_in->buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left->id, output_left->buffer);
+                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right->id, output_right->buffer);
                     break;
                 case 0x0d:
                     printf("\r\n");
@@ -126,14 +101,14 @@ int32_t notmain (uint32_t earlypc) {
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
             lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
             lv2_atom_forge_set_buffer(&forge,
-                                      midi_in.buffer,
-                                      LV2_MIDI_BUFFER_SIZE);
+                                      midi_in->buffer,
+                                      sizeof(uint8_t) * midi_in->buffer_sz);
             lv2_atom_forge_sequence_head(&forge, &midi_seq_frame, 0);
             buffer_processed = 1;
         }
 
         if (buffer_processed && audio_buffer_free_space() > LV2_AUDIO_BUFFER_SIZE * 2) {
-            audio_buffer_write(output_left.buffer, output_right.buffer, output_left.buffer_sz);
+            audio_buffer_write(output_left->buffer, output_right->buffer, output_left->buffer_sz);
             buffer_processed = 0;
             counter++;
         }

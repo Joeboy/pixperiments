@@ -15,4 +15,18 @@ LV2_Handle *lv2_handles[MAX_PLUGINS];
 
 void lv2_init();
 
+
+#define LV2_AUDIO_BUFFER_SIZE 0x40
+#define LV2_ATOM_BUFFER_SIZE 256
+
+enum lv2_port_type { lv2_audio_port, lv2_atom_port };
+
+typedef struct {
+    enum lv2_port_type type;
+    uint32_t id;
+    void *buffer;
+    size_t buffer_sz;
+} lv2_port;
+
+lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t id);
 #endif

@@ -52,6 +52,7 @@ uint32_t get_timer_ms() {
 uint32_t reset_timer_ms() {
     timer_ms_base = 0;
     timer_ms_base = get_timer_ms();
+    return timer_ms_base;
 }
 
 
