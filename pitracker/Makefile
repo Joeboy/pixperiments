@@ -69,11 +69,11 @@ posix: $(POSIX_OBJS)
 platform: $(PLATFORM_OBJS)
 
 pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform plugins includes/lv2.o includes/mf_read.o
-	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o tune.o plugins/piano.lv2/piano.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
+	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o tune.o $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
 
 # This is rotten and almost certainly broken:
 pitracker_exe :  tune.o platform includes/lv2.o includes/mf_read.o plugins
-	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o includes/lv2.o includes/mf_read.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
+	$(CC) $(CFLAGS) pitracker.c $(PLUGIN_OBJS) includes/lv2.o includes/mf_read.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
 	$(OBJCOPY) pitracker.elf -O binary kernel.img

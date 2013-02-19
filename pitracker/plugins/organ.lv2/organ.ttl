@@ -7,11 +7,11 @@
 @prefix urid: <http://lv2plug.in/ns/ext/urid#>.
 
 
-<http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/piano/out> a pg:StereoGroup.
+<http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/organ/out> a pg:StereoGroup.
 
-<http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/piano>
+<http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/organ>
   a lv2:Plugin, lv2:InstrumentPlugin;
-  doap:name "Baremetal piano";
+  doap:name "Baremetal organ";
   doap:license <http://usefulinc.com/doap/licenses/gpl>;
 
   lv2:port [
@@ -30,7 +30,7 @@
     lv2:symbol "left";
     lv2:name "Left";
     pg:membership [
-      pg:group <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/piano/out>;
+      pg:group <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/organ/out>;
       pg:role pg:leftChannel;
     ];
   ],
@@ -41,7 +41,7 @@
     lv2:symbol "right";
     lv2:name "Right";
     pg:membership [
-      pg:group <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/piano/out>;
+      pg:group <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/organ/out>;
       pg:role pg:rightChannel;
     ];
   ].

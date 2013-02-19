@@ -14,8 +14,6 @@ const LV2_Feature* lv2_features[MAX_FEATURES];
 LV2_Descriptor *lv2_descriptors[MAX_PLUGINS];
 LV2_Handle *lv2_handles[MAX_PLUGINS];
 
-void lv2_init();
-
 
 #define LV2_AUDIO_BUFFER_SIZE 0x40
 #define LV2_ATOM_BUFFER_SIZE 256
@@ -30,4 +28,12 @@ typedef struct {
 } lv2_port;
 
 lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t id);
+
+typedef struct {
+    unsigned int sample_rate;
+    unsigned int num_plugins;
+} Lv2World;
+
+Lv2World *lv2_init(uint32_t sample_rate);
+
 #endif

@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
         int cmd_len = strlen(cmd_fmt) + descriptor_symbol_len + strlen(plugin_library_path) - 4;
         cmd = malloc(cmd_len + 10);
         snprintf(cmd, cmd_len, cmd_fmt, cur->symbol, plugin_library_path);
-        //printf("%s\r\n", cmd);
+        //printf("cmd=%s\r\n", cmd);
         
         if (system(cmd) == -1) {
             printf("Warning: failed to redefine symbol: %s\n", cmd);
@@ -83,11 +83,10 @@ int main(int argc, char** argv) {
     }
     fprintf(outfile, "    NULL\n};\n\n");
 
-    cur = first;
-    while (1) {
+    for (cur=first;cur;) {
         next = cur->next;
         free(cur);
-        if (!next) break;
+        cur = next;
     }
 
     fclose(outfile);
