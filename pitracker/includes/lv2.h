@@ -1,6 +1,7 @@
 #ifndef PITRACKER_LV2_H
 #define PITRACKER_LV2_H
 #include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include <lv2/lv2plug.in/ns/ext/atom/forge.h>
 
 LV2_Atom_Forge forge;
 

@@ -7,6 +7,9 @@
 #include <pi/audio.h>
 #include <lv2.h>
 
+#include "../descriptors.h"
+
+
 typedef struct urid_map_entry {
     const char* uri;
     uint32_t id;
@@ -60,16 +63,6 @@ static LV2_URID_Unmap lv2_urid_unmap = {NULL, urid_unmap_func};
 
 static LV2_Feature map_feature       = { LV2_URID__map, &lv2_urid_map };
 static LV2_Feature unmap_feature     = { LV2_URID__unmap, &lv2_urid_unmap };
-
-extern const LV2_Descriptor *lv2_descriptor_1(uint32_t index);
-extern const LV2_Descriptor *lv2_descriptor_2(uint32_t index);
-extern const LV2_Descriptor *lv2_descriptor_3(uint32_t index);
-
-const void* lv2_descriptor_loaders[] = {
-    lv2_descriptor_1,
-    lv2_descriptor_2,
-    lv2_descriptor_3,
-    NULL };
 
 
 // function pointer for running our descriptor functions
