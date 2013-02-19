@@ -1,4 +1,5 @@
 CWD = $(shell pwd)
+SHELL := /bin/bash
 ifeq ($(PLATFORM), LINUX)
 
 PLATFORM_SRC = $(wildcard includes/linux/*.c)
@@ -29,6 +30,11 @@ all : kernel_img
 endif
 
 export CFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAGS)
+
+PLUGIN_DIRS = $(wildcard plugins/*.lv2)
+PLUGIN_NAMESX = $(subst plugins/,,$(PLUGIN_DIRS))
+PLUGIN_NAMES = $(subst .lv2,,$(PLUGIN_NAMESX))
+PLUGIN_OBJS = plugins/piano.lv2/piano.o plugins/sawtooth.lv2/sawtooth.o plugins/organ.lv2/organ.o
 
 PLATFORM_OBJS = $(PLATFORM_SRC:.c=.o)
 
@@ -61,10 +67,10 @@ posix: $(POSIX_OBJS)
 
 platform: $(PLATFORM_OBJS)
 
-pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform includes/lv2.o includes/mf_read.o prepare_plugins
-	$(LD) vectors.o plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o pitracker.o includes/lv2.o includes/mf_read.o tune.o $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
+pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform includes/lv2.o includes/mf_read.o plugins
+	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o tune.o $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf
 
-pitracker_exe :  tune.o platform includes/lv2.o includes/mf_read.o prepare_plugins
+pitracker_exe :  tune.o platform includes/lv2.o includes/mf_read.o plugins
 	$(CC) $(CFLAGS) pitracker.c plugins/piano/piano.o plugins/sawtooth/sawtooth.o plugins/organ/organ.o includes/lv2.o includes/mf_read.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
@@ -72,20 +78,16 @@ kernel_img : pitracker.elf
 	cp kernel.img SD_Card/
 
 
-piano : plugins/piano/piano.o
-	make -C plugins/piano
+build_plugins :
+	for dir in $(PLUGIN_DIRS); do \
+	make -C $$dir; \
+	done
 
-sawtooth : plugins/piano/piano.o
-	make -C plugins/sawtooth
-
-organ : plugins/organ/organ.o
-	make -C plugins/organ
-
-plugins : piano sawtooth organ
-
-prepare_plugins : plugins
-	$(OBJDUMP) -t plugins/piano/piano.o | grep lv2_descriptor
-	$(OBJCOPY) --redefine-sym  lv2_descriptor=lv2_descriptor_1 plugins/piano/piano.o
-	$(OBJCOPY) --redefine-sym  lv2_descriptor=lv2_descriptor_2 plugins/organ/organ.o
-	$(OBJCOPY) --redefine-sym  lv2_descriptor=lv2_descriptor_3 plugins/sawtooth/sawtooth.o
+plugins : build_plugins
+#	$(OBJDUMP) -t plugins/piano.lv2/piano.o | grep lv2_descriptor
+	count=1 ;\
+	for plugin_name in $(PLUGIN_NAMES); do \
+	$(OBJCOPY) --redefine-sym  lv2_descriptor=lv2_descriptor_$$count plugins/$$plugin_name.lv2/$$plugin_name.o ;\
+	let "count+=1" ; \
+	done
 
