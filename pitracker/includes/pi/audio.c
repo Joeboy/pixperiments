@@ -72,7 +72,7 @@ int32_t audio_init(void) {
     // PWM0_RANGE=1024
     // PWM1_RANGE=1024
     uint32_t range = 0x400;
-    uint32_t idiv = 8;
+    uint32_t idiv = 12;
     SET_GPIO_ALT(40, 0); // set pins 40/45 (aka phone jack) to pwm function
     SET_GPIO_ALT(45, 0);
     usleep(10); // I don't know if all these usleeps are really necessary
@@ -80,7 +80,9 @@ int32_t audio_init(void) {
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_CNTL, PM_PASSWORD | BCM2835_PWMCLK_CNTL_KILL);
     PUT32(PWM_BASE + 4*BCM2835_PWM_CONTROL, 0);
 
-    uint32_t samplerate = 500000000.0 / idiv / range / 2; // 2 channels
+    // In theory this should be divided by 2 again for the two channels, but
+    // that seems to lead to the wrong rate. TODO: investigate
+    uint32_t samplerate = 500000000.0 / idiv / range;
 
     PUT32(CLOCK_BASE + 4*BCM2835_PWMCLK_DIV, PM_PASSWORD | (idiv<<12));
     

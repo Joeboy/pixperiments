@@ -34,7 +34,7 @@ export CFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAG
 PLUGIN_DIRS = $(wildcard plugins/*.lv2)
 PLUGIN_NAMESX = $(subst plugins/,,$(PLUGIN_DIRS))
 PLUGIN_NAMES = $(subst .lv2,,$(PLUGIN_NAMESX))
-PLUGIN_OBJS = plugins/piano.lv2/piano.o plugins/sawtooth.lv2/sawtooth.o plugins/organ.lv2/organ.o
+PLUGIN_OBJS = plugins/piano.lv2/piano.o plugins/sawtooth.lv2/sawtooth.o plugins/organ.lv2/organ.o plugins/wavplayer.lv2/wavplayer.o
 
 PLATFORM_OBJS = $(PLATFORM_SRC:.c=.o)
 

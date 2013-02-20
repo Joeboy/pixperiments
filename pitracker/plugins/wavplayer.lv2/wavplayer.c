@@ -16,21 +16,33 @@
 #define OUTPUT_RIGHT 2
 #define MIDI_IN 3
 
-#ifndef M_PI
-#define M_PI 3.14159265
-#endif
+extern uint8_t _binary_sample_wav_start;
 
 static LV2_Descriptor *synthDescriptor = NULL;
 
-enum voice_state {on, released, off};
+enum voice_state {on, off};
+
+typedef struct  WAV_HEADER {
+     uint8_t       RIFF[4];        /* RIFF Header      */ //Magic header
+     uint32_t      ChunkSize;      /* RIFF Chunk Size  */
+     uint8_t       WAVE[4];        /* WAVE Header      */
+     uint8_t       fmt[4];         /* FMT header       */
+     uint32_t      Subchunk1Size;  /* Size of the fmt chunk                                */
+     uint16_t      AudioFormat;    /* Audio format 1=PCM,6=mulaw,7=alaw, 257=IBM Mu-Law, 258=IBM A-Law, 259=ADPCM */
+     uint16_t      NumOfChan;      /* Number of channels 1=Mono 2=Sterio                   */
+     uint32_t      SamplesPerSec;  /* Sampling Frequency in Hz                             */
+     uint32_t      bytesPerSec;    /* bytes per second */
+     uint16_t      blockAlign;     /* 2=16-bit mono, 4=16-bit stereo */
+     uint16_t      bitsPerSample;  /* Number of bits per sample      */
+     uint8_t       Subchunk2ID[4]; /* "data"  string   */
+     uint32_t      Subchunk2Size;  /* Sampled data length    */
+}wav_hdr;
 
 typedef struct {
     enum voice_state state;
     uint32_t note_no;
     float freq;
-    float env;
     uint32_t time;
-    uint32_t released_time;
 } voice;
 
 
@@ -42,6 +54,8 @@ typedef struct {
     float *output_left;
     float *output_right;
     LV2_URID midi_Event;
+    int16_t *audiodata;
+    uint32_t audiodata_len;
 } Plugin;
 
 
@@ -49,8 +63,7 @@ static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
         double s_rate, const char *path, const LV2_Feature * const* features) {
 
     Plugin *plugin = (Plugin *)malloc(sizeof(Plugin));
-    uint32_t i;
-    for (i=0;i<NUM_VOICES;i++) voices[i].state = off;
+    for (int i=0;i<NUM_VOICES;i++) voices[i].state = off;
     plugin->sample_rate = s_rate;
     LV2_URID_Map *map = NULL;
 
@@ -64,6 +77,10 @@ static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
     }
 
     plugin->midi_Event = map->map(NULL, LV2_MIDI__MidiEvent);
+
+    wav_hdr *hdr = (wav_hdr*)&_binary_sample_wav_start;
+    plugin->audiodata = (int16_t*)(hdr + 1);
+    plugin->audiodata_len = hdr->Subchunk2Size / sizeof(int16_t);
 
     return (LV2_Handle)plugin;
 }
@@ -91,16 +108,15 @@ static void connect_port(LV2_Handle instance, uint32_t port, void *data) {
 }
 
 static float noteno2freq(uint32_t note_no) {
-    // This was simpler than implementing pow()
     float multipliers[12] = { 1.0, 1.05946309436, 1.12246204831, 1.189207115, 1.25992104989,
                               1.33483985417, 1.41421356237, 1.49830707688, 1.58740105197,
                               1.68179283051, 1.78179743628, 1.88774862536 };
     float multiplier, freq;
-    uint32_t octave = note_no/12;
+    int octave = note_no/12;
     multiplier = multipliers[note_no - 12*octave];
     freq = 440.0 / 32.0;
     while (octave-- > 0) freq *= 2;
-    return freq * multiplier / 16;
+    return freq * multiplier / 8;
 }
 
 
@@ -130,54 +146,24 @@ static void note_off(uint32_t note_no) {
     uint32_t i;
     for (i=0;i<NUM_VOICES;i++) {
         if (voices[i].note_no == note_no) {
-            voices[i].state = released;
-            voices[i].released_time = 0;
+//            voices[i].state = off;
         }
     }
 }
 
-static float envelope(voice *vp) {
-    float env;
-    uint32_t attack_time = 1000;
-    float attack = 0.5;
-    uint32_t decay_time = 5000;
-    float sustain = 0.4;
-    uint32_t release_time = 3000;
-    voice v = *vp;
-
-    if (v.state == on) {
-        if (v.time < attack_time) env = attack*((float)(v.time) / attack_time);
-        else if (v.time < (attack_time + decay_time)) env = (float)attack - (float)(attack - sustain) * (float)(((float)v.time - attack_time) / (float)decay_time);
-        else env = sustain;
-        (*vp).env = env;
-    } else if (v.state == released) {
-        if (v.released_time > release_time) {
-            vp->state = off;
-            env = 0;
-        } else {
-            // Ramp down from whatever the last envelope value was (not necessarily the sustain value)
-            env = (float)v.env - (float)v.env*(float)((float)v.released_time / (float)release_time);
-        }
-    } else env = 0; // should never happen
-    return env;
+static float waveform(Plugin *plugin, voice *v, double sample_rate) {
+    float base_freq = 110; // Guess
+    float time_shift = v->freq / base_freq;
+    int index = time_shift * v->time;
+    if (index > plugin->audiodata_len) {
+        v->state = off;
+        return 0;
+    } else return (float)plugin->audiodata[index] / 32768.0 / 4;
 }
 
-static float waveform(voice v, double sample_rate) {
-//    static int32_t vibrato=1;
-//    static uint32_t vib_dir=0;
-//    uint32_t vibrato_period = 2000;
-//    float vibrato_depth = 0.1;
-//    float freq;
-//    freq = v.freq;//*/100 * (1.0 + vibrato_depth * (float)((float)vibrato - (float)vibrato_period/2.0)/(float)vibrato_period);
-//    vibrato += (vib_dir ? -1 : 1);
-//    if (vibrato > vibrato_period || vibrato ==0) vib_dir = !vib_dir;
-    return 0.5 * !!((unsigned int)((16 * v.freq * 2 * v.time) / sample_rate) & 0x7);
-}
 
 static void run(LV2_Handle instance, uint32_t sample_count) {
-    static uint32_t t=1; // 0 gets optimized out
-    uint32_t i;
-    uint32_t v;
+    static uint32_t t=0;
     float out;
 
     Plugin *plugin = (Plugin *)instance;
@@ -190,6 +176,7 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
             switch (lv2_midi_message_type(msg)) {
             case LV2_MIDI_MSG_NOTE_ON:
                 note_on(msg[1]);
+//                dump_int_hex(msg[2]); // velocity
                 break;
             case LV2_MIDI_MSG_NOTE_OFF:
                 note_off(msg[1]);
@@ -200,14 +187,12 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
         }
     }
 
-    for (i=0;i<sample_count;i++) {
+    for (unsigned int i=0;i<sample_count;i++) {
         out=0;
-        for (v=0;v<NUM_VOICES;v++) {
+        for (int v=0;v<NUM_VOICES;v++) {
             if (voices[v].state == off) continue;
-            out += VOICE_CLAMPER * envelope(&(voices[v])) * waveform(voices[v], plugin->sample_rate);
-
+            out += VOICE_CLAMPER * waveform(plugin, &voices[v], plugin->sample_rate);
             voices[v].time++;
-            if (voices[v].state == released) voices[v].released_time++;
         }
         plugin->output_left[i] = out;
         plugin->output_right[i] = out;
@@ -222,7 +207,7 @@ const LV2_Descriptor *lv2_descriptor(uint32_t index)
     if (!synthDescriptor) {
         synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
 
-        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/sawtooth";
+        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/wavplayer";
         synthDescriptor->activate = NULL;
         synthDescriptor->cleanup = cleanup;
         synthDescriptor->connect_port = connect_port;
