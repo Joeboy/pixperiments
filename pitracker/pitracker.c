@@ -30,7 +30,7 @@
 int32_t notmain (uint32_t earlypc) {
     hardware_init();
     int32_t samplerate = audio_init();
-    lv2_init(samplerate);
+    Lv2World *lv2_world = lv2_init(samplerate);
     led_init();
     switch_init();
 
@@ -38,18 +38,19 @@ int32_t notmain (uint32_t earlypc) {
     printf("Samplerate: %d\r\n", samplerate);
 
     uint32_t inkey;
-    unsigned int plugin_id = 0;
     uint32_t counter=0;
     LV2_Atom_Forge_Frame midi_seq_frame;
     int buffer_processed = 0;
+    const Lv2Plugin *plugin;
+    plugin = lv2_world->plugin_list;
 
     lv2_port *output_left = new_lv2_port(lv2_audio_port, 1);
     lv2_port *output_right = new_lv2_port(lv2_audio_port, 2);
     lv2_port *midi_in = new_lv2_port(lv2_atom_port, 3);
 
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in->id, midi_in->buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left->id, output_left->buffer);
-    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right->id, output_right->buffer);
+    plugin->descriptor->connect_port(plugin->handle, midi_in->id, midi_in->buffer);
+    plugin->descriptor->connect_port(plugin->handle, output_left->id, output_left->buffer);
+    plugin->descriptor->connect_port(plugin->handle, output_right->id, output_right->buffer);
 
     lv2_atom_forge_set_buffer(&forge,
                               midi_in->buffer,
@@ -76,11 +77,11 @@ int32_t notmain (uint32_t earlypc) {
 #endif
                     break;
                 case 0x31:
-                    plugin_id++;
-                    if (plugin_id > 2) plugin_id = 0;
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], midi_in->id, midi_in->buffer);
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_left->id, output_left->buffer);
-                    lv2_descriptors[plugin_id]->connect_port(lv2_handles[plugin_id], output_right->id, output_right->buffer);
+                    if (plugin->next) plugin = plugin->next;
+                    else plugin = lv2_world->plugin_list;
+                    plugin->descriptor->connect_port(plugin->handle, midi_in->id, midi_in->buffer);
+                    plugin->descriptor->connect_port(plugin->handle, output_left->id, output_left->buffer);
+                    plugin->descriptor->connect_port(plugin->handle, output_right->id, output_right->buffer);
                     break;
                 case 0x0d:
                     printf("\r\n");
@@ -99,7 +100,7 @@ int32_t notmain (uint32_t earlypc) {
             forge_midi_input();
 
             lv2_atom_forge_pop(&forge, &midi_seq_frame);
-            lv2_descriptors[plugin_id]->run(lv2_handles[plugin_id], LV2_AUDIO_BUFFER_SIZE);
+            plugin->descriptor->run(plugin->handle, LV2_AUDIO_BUFFER_SIZE);
             lv2_atom_forge_set_buffer(&forge,
                                       midi_in->buffer,
                                       sizeof(uint8_t) * midi_in->buffer_sz);

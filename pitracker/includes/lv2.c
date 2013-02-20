@@ -68,29 +68,36 @@ static LV2_Feature unmap_feature     = { LV2_URID__unmap, &lv2_urid_unmap };
 // function pointer for running our descriptor functions
 static int (*get_descriptor)(uint32_t index);
 
+
 static void load_lv2_descriptors(Lv2World *world) {
     unsigned int i;
+    Lv2Plugin *cur, *prev=NULL, *first=NULL;
     for (i=0;lv2_descriptor_loaders[i];i++) {
+        cur = malloc(sizeof(Lv2Plugin));
+        cur->next = NULL;
+        if (prev) prev->next = cur;
+        else first=cur;
         get_descriptor = lv2_descriptor_loaders[i];
-        lv2_descriptors[i] = (LV2_Descriptor*)get_descriptor(0);
-        lv2_handles[i] = lv2_descriptors[i]->instantiate(
-                                                 lv2_descriptors[i],
+        cur->descriptor = (LV2_Descriptor*)get_descriptor(0);
+
+        cur->handle = cur->descriptor->instantiate(
+                                                 cur->descriptor,
                                                  world->sample_rate,
                                                  NULL,
-                                                 lv2_features);
+                                                 world->lv2_features);
+        prev = cur;
     }
     world->num_plugins = i;
-    lv2_handles[i] = NULL;
+    world->plugin_list = first;
 }
-
 
 Lv2World *lv2_init(uint32_t sample_rate) {
     Lv2World *world = malloc(sizeof(Lv2World));
     world->sample_rate = sample_rate;
     urid_table = NULL;
-    lv2_features[0] = &map_feature;
-    lv2_features[1] = &unmap_feature;
-    lv2_features[2] = NULL ;
+    world->lv2_features[0] = &map_feature;
+    world->lv2_features[1] = &unmap_feature;
+    world->lv2_features[2] = NULL ;
 	lv2_atom_forge_init(&forge, &lv2_urid_map);
     load_lv2_descriptors(world);
     return world;

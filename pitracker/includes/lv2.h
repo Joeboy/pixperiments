@@ -7,14 +7,6 @@ LV2_Atom_Forge forge;
 
 LV2_URID_Map lv2_urid_map;
 
-#define MAX_FEATURES 3
-const LV2_Feature* lv2_features[MAX_FEATURES];
-
-#define MAX_PLUGINS 20
-LV2_Descriptor *lv2_descriptors[MAX_PLUGINS];
-LV2_Handle *lv2_handles[MAX_PLUGINS];
-
-
 #define LV2_AUDIO_BUFFER_SIZE 0x40
 #define LV2_ATOM_BUFFER_SIZE 256
 
@@ -29,11 +21,20 @@ typedef struct {
 
 lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t id);
 
+typedef struct Lv2Plugin {
+    LV2_Descriptor *descriptor;
+    LV2_Handle *handle;
+    struct Lv2Plugin* next;
+} Lv2Plugin;
+
 typedef struct {
     unsigned int sample_rate;
     unsigned int num_plugins;
+    const LV2_Feature *lv2_features[3];
+    const Lv2Plugin* plugin_list;
 } Lv2World;
 
 Lv2World *lv2_init(uint32_t sample_rate);
+
 
 #endif
