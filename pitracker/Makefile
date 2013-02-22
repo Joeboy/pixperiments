@@ -22,7 +22,7 @@ OBJCOPY = arm-none-eabi-objcopy
 
 EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
 AFLAGS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
-LIB = -L /home/joe/building/gnuarm/arm-none-eabi/lib/ -L/home/joe/building/gnuarm/lib/gcc/arm-none-eabi/4.7.1
+LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/ -L../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.1
 
 
 PLATFORM_SRC = $(wildcard includes/pi/*.c)

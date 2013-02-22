@@ -1,0 +1,73 @@
+#!/bin/sh
+
+# This is a script I took from https://github.com/dwelch67/raspberrypi/tree/master/buildgcc
+# and hacked about a bit. It's not very elegant but it did seem to get me a
+# gnu toolchain with vfp. Took ages to get it to work so I'm reluctant to touch it now.
+
+# Usage
+# sudo ./build_gcc
+
+# Setup vars
+CWD=`pwd`
+export TARGET=arm-none-eabi
+export PREFIX=$CWD/gnuarm
+export PATH=$PATH:$PREFIX/bin
+
+rm -rf build-*
+rm -rf gcc-4.7.1
+rm -rf binutils-2.22
+rm -rf newlib-2.0.0
+
+# Get archives
+if [ ! -f binutils-2.22.tar.bz2 ]; then
+    wget http://ftp.gnu.org/gnu/binutils/binutils-2.22.tar.bz2
+fi
+if [ ! -f gcc-4.7.1.tar.bz2 ]; then
+    wget http://ftp.gnu.org/gnu/gcc/gcc-4.7.1/gcc-4.7.1.tar.bz2
+fi
+if [ ! -f newlib-2.0.0.tar.gz ]; then
+    wget ftp://sourceware.org/pub/newlib/newlib-2.0.0.tar.gz
+fi
+
+# Extract archives
+bzip2 -dc binutils-2.22.tar.bz2 | tar -xf -
+bzip2 -dc gcc-4.7.1.tar.bz2 | tar -xf -
+tar -xzf newlib-2.0.0.tar.gz
+
+# Build binutils
+mkdir build-binutils
+cd build-binutils
+../binutils-2.22/configure --target=$TARGET --prefix=$PREFIX
+make all
+make install
+
+# Build GCC
+mkdir ../build-gcc
+cd ../build-gcc
+../gcc-4.7.1/configure --target=$TARGET --prefix=$PREFIX --without-headers --with-newlib --with-gnu-as --with-gnu-ld
+make all-gcc
+make install-gcc
+
+export TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math -marm"
+
+mkdir ../build-newlib
+cd ../build-newlib
+mv ../newlib-2.0.0/newlib/libc/sys/arm/crt0.S ../newlib-2.0.0/newlib/libc/sys/arm/crt0.S.orig
+cp ../crt0.S ../newlib-2.0.0/newlib/libc/sys/arm/
+mv ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c.orig
+touch ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c
+mv ../newlib-2.0.0/newlib/libc/sys/arm/syscalls.c ../newlib-2.0.0/newlib/libc/sys/arm/syscalls.c.orig
+cp ../syscalls.c ../newlib-2.0.0/newlib/libc/sys/arm/
+TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" ../newlib-2.0.0/configure --target=$TARGET --prefix=$PREFIX
+TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" make all
+TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" make install
+
+cd ../build-gcc
+../gcc-4.1.1/configure --target=$TARGET --prefix=$PREFIX --with-newlib --with-fpu=vfp --with-float=hard --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp
+make all
+make install
+
+# Build libgcc.a
+make all-target-libgcc CFLAGS_FOR_TARGET="-g -O2 -mhard-float -mfpu=vfp -mfloat-abi=hard"
+make install-target-libgcc
+
