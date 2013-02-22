@@ -1,0 +1,33 @@
+MDA.LV2
+=======
+
+This is a port of the MDA VST plugins to LV2.
+
+MDA plugins are originally by Paul Kellett and were released under the GPL
+v2 or later, or the MIT license.  Thanks, Paul!
+
+This port is by David Robillard, and is 100% Free Software (including the only
+dependency lv2.h) released under the GPL v2 or later.  See COPYING for details.
+
+This port is based on revision 10 of the MDA SVN repository at
+<https://mda-vst.svn.sourceforge.net/svnroot/mda-vst>.  It is similar to, but
+not 100% compatible with, the original plugins, since some VSTisms have been
+changed to be more appropriate for LV2 (e.g. toggle ports).
+
+LVZ
+---
+
+To port these plugins to LV2, I wrote the missing code blindly in order
+to make things compile and work as an LV2 plugins.  The interface (but not
+implementation) of this code is intrinsically similar to the original API
+used by MDA (namely VST), but solely due to the fact that the original MDA
+code was written against this API.
+
+These plugins make no claim of compatibility, or any other relation, to VST.
+This code does not require the VST SDK, or any other non-free software.
+This code has never come into contact with any part of the VST SDK.
+I (David Robillard) have never come into contact with any part of the VST SDK.
+Clear? :)
+
+I have named this wrapper/interface "LVZ" (for LV0, condescension intended).
+It may be useful for porting other GPL VST plugins to LV2.
