@@ -26,7 +26,7 @@ void uart_init();
 
 uint32_t uart_input_ready();
 uint32_t uart_read();
-int getc();
-int putc (uint32_t c, ...);
+int uart_getc();
+int uart_putc (uint32_t c, ...);
 
 #endif

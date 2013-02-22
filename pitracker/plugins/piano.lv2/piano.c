@@ -96,7 +96,7 @@ static float noteno2freq(uint32_t note_no) {
     multiplier = multipliers[note_no - 12*octave];
     freq = 440.0 / 32.0;
     while (octave-- > 0) freq *= 2;
-    return freq * multiplier / 4;
+    return freq * multiplier / 2;
 }
 
 static void note_on(uint32_t note_no) {

@@ -1,40 +1,4 @@
-#ifndef MATH_H
-#define MATH_H
-
-#include <stdint.h>
-
-#define PI 3.14159265
-
-extern void dummy (uint32_t);
-
-/*
-float fmul(float a, float b) {
-    float c;
-    asm ("mov r0, %[value]\n" :  : [value] "r" (a));
-    asm ("mov r1, %[value]\n" :  : [value] "r" (b));
-    asm ("vmov s0,r0\n");
-    asm ("vmov s1,r1\n");
-    asm ("vmul.f32 s2,s0,s1\n");
-    asm ("vmov r0,s2\n");
-    asm ("mov %[result], r0\n" : [result] "=r" (c));
-    dummy(1); // Without this the function returns 0 for some crazy reason
-    return c;
-}
-
-float fdiv(float a, float b) {
-    float c;
-    asm ("mov r0, %[value]\n" :  : [value] "r" (a));
-    asm ("mov r1, %[value]\n" :  : [value] "r" (b));
-    asm ("vmov s0,r0\n");
-    asm ("vmov s1,r1\n");
-    asm ("vdiv.f32 s2,s0,s1\n");
-    asm ("vmov r0,s2\n");
-    asm ("mov %[result], r0\n" : [result] "=r" (c));
-    dummy(1); // Without this the function returns 0 for some crazy reason
-    return c;
-}
-*/
-
+#include <math.h>
 
 // array of 256 sin values
 float sindata[] = {
@@ -74,13 +38,3 @@ float sinf(float x) {
     return sindata[index & 0xff];
 }
 
-/*
-float square(int x) {
-    return !!(x & 0x80);
-}
-
-float sawtooth(int x) {
-    return (float)(x & 0xff) / 256;
-}
-*/
-#endif

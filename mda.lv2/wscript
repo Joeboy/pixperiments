@@ -44,7 +44,7 @@ def build(bld):
             install_path = '${LV2DIR}/mda.lv2')
 
     # Make a pattern for shared objects without the 'lib' prefix
-    module_pat = re.sub('^lib', '', bld.env.cxxshlib_PATTERN)
+    module_pat = re.sub('^lib', '', bld.env.cxxstlib_PATTERN)
     module_ext = module_pat[module_pat.rfind('.'):]
 
     # Build manifest by substitution
@@ -92,10 +92,11 @@ def build(bld):
             VocInput
             Vocoder
     '''.split()
+    plugins = ["Delay"]
 
     for p in plugins:
         # Build plugin library
-        obj = bld(features     = 'cxx cxxshlib',
+        obj = bld(features     = 'cxx cxxstlib',
                   source       = ['src/mda%s.cpp' % p, 'lvz/wrapper.cpp'],
                   includes     = ['.', './lvz', './src'],
                   name         = p,
@@ -106,7 +107,7 @@ def build(bld):
                                   'URI_PREFIX="http://drobilla.net/plugins/mda/"',
                                   'PLUGIN_URI_SUFFIX="%s"' % p,
                                   'PLUGIN_HEADER="src/mda%s.h"' % p])
-        obj.env.cxxshlib_PATTERN = module_pat
+        obj.env.cxxstlib_PATTERN = module_pat
 
         # Install data file
         bld.install_files('${LV2DIR}/' + bundle, os.path.join(bundle, p + '.ttl'))

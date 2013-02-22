@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     LILV_FOREACH(plugins, i, plugins) {
         LilvPlugin *plugin = (LilvPlugin *) ( lilv_plugins_get(plugins, i));
         n = lilv_plugin_get_uri(plugin);
+        printf("%s\r\n", lilv_node_as_string(n));
         const char *plugin_uri = lilv_node_as_string(n);
         md5(plugin_uri, plugin_uri_md5);
 

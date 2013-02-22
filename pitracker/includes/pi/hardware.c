@@ -57,7 +57,19 @@ uint32_t reset_timer_ms() {
 
 
 void hardware_init() {
-    setup_heap();
+//    setup_heap();
     for(unsigned int i=bss_start;i<bss_end;i+=4) PUT32(i,0);
     uart_init();
 }
+
+#include <sys/types.h>
+
+int usleep(useconds_t __useconds) {
+    // Pause for about t ms
+    int i;
+    unsigned int t = __useconds;
+    for (;t>0;t--) {
+        for (i=5000;i>0;i--) dummy(i);
+    }
+}
+

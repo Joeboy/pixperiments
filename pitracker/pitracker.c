@@ -13,7 +13,6 @@
 #include <pi/uart.h>
 #include <pi/kbhit.h>
 #include <pi/hardware.h>
-#define stdout 0
 #endif
 
 #ifdef LINUX

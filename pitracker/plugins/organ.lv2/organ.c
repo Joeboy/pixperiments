@@ -16,9 +16,6 @@
 #define OUTPUT_RIGHT 2
 #define MIDI_IN 3
 
-#ifndef M_PI
-#define M_PI           3.14159265358979323846
-#endif
 
 static LV2_Descriptor *synthDescriptor = NULL;
 

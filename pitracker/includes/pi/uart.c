@@ -58,14 +58,14 @@ uint32_t uart_read() {
     return GET32(AUX_MU_IO_REG);
 }
 
-int getc () {
+int uart_getc () {
     while (1) {
         if (uart_input_ready()) break;
     }
     return uart_read();
 }
 
-int putc (uint32_t c, ...) {
+int uart_putc (uint32_t c, ...) {
     while(1) {
         if(GET32(AUX_MU_LSR_REG)&0x20) break;
     }
