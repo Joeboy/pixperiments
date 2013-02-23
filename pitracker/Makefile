@@ -36,7 +36,7 @@ endif
 export CFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAGS)
 
 PLUGIN_DIRS = $(wildcard plugins/*.lv2)
-PLUGIN_OBJS = installed_plugins/piano.lv2/piano.a installed_plugins/sawtooth.lv2/sawtooth.a installed_plugins/organ.lv2/organ.a installed_plugins/wavplayer.lv2/wavplayer.a
+PLUGIN_OBJS = $(shell cat plugin_library_list.txt)
 
 PLATFORM_OBJS = $(PLATFORM_SRC:.c=.o)
 
@@ -52,6 +52,7 @@ clean :
 	rm -f kernel.img pitracker
 	rm -f descriptors.h
 	rm -rf installed_plugins 
+	rm -f plugin_library_list.txt
 	for dir in $(PLUGIN_DIRS); do \
 	make -C $$dir clean; \
 	done
