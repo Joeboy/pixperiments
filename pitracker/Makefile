@@ -1,11 +1,14 @@
 CWD = $(shell pwd)
 SHELL := /bin/bash
+export LV2_PATH=$(CWD)/installed_plugins
+export INSTALL_DIR=$(LV2_PATH)
+export STATIC_LV2=1
+
+
 ifeq ($(PLATFORM), LINUX)
 
 PLATFORM_SRC = $(wildcard includes/linux/*.c)
-
 all : pitracker_exe
-
 CC = gcc
 OBJDUMP = objdump
 OBJCOPY = objcopy
@@ -13,7 +16,6 @@ OBJCOPY = objcopy
 else
 
 PLATFORM = RASPBERRY_PI
-
 AS = arm-none-eabi-as
 export CC = arm-none-eabi-gcc
 export LD = arm-none-eabi-ld
@@ -24,19 +26,17 @@ EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostdlib -nostartfiles -ffreestanding -m
 AFLAGS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
 LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/ -L../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.1
 
-
 PLATFORM_SRC = $(wildcard includes/pi/*.c)
 
 all : kernel_img
 
 endif
 
+
 export CFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAGS)
 
 PLUGIN_DIRS = $(wildcard plugins/*.lv2)
-PLUGIN_NAMESX = $(subst plugins/,,$(PLUGIN_DIRS))
-PLUGIN_NAMES = $(subst .lv2,,$(PLUGIN_NAMESX))
-PLUGIN_OBJS = plugins/piano.lv2/piano.o plugins/sawtooth.lv2/sawtooth.o plugins/organ.lv2/organ.o plugins/wavplayer.lv2/wavplayer.o
+PLUGIN_OBJS = installed_plugins/piano.lv2/piano.a installed_plugins/sawtooth.lv2/sawtooth.a installed_plugins/organ.lv2/organ.a installed_plugins/wavplayer.lv2/wavplayer.a
 
 PLATFORM_OBJS = $(PLATFORM_SRC:.c=.o)
 
@@ -46,13 +46,15 @@ POSIX_OBJS = $(POSIX_SRC:.c=.o)
 
 clean :
 	rm -f *.o
-	rm -f plugins/*/*.o
 	rm -f includes/*.o includes/*/*.o
 	rm -f *.bin
 	rm -f *.elf
 	rm -f kernel.img pitracker
-	make -C staticizer clean
 	rm -f descriptors.h
+	rm -rf installed_plugins 
+	for dir in $(PLUGIN_DIRS); do \
+	make -C $$dir clean; \
+	done
 
 pitracker.o : pitracker.c
 	$(CC) $(CFLAGS) -c $^ -o $@
@@ -83,21 +85,14 @@ kernel_img : pitracker.elf
 
 
 build_plugins :
+	mkdir -p installed_plugins
 	for dir in $(PLUGIN_DIRS); do \
-	make -C $$dir; \
+	make -C $$dir install; \
 	done
 
 plugins : build_plugins staticize_plugins
 #	$(OBJDUMP) -t plugins/piano.lv2/piano.o | grep lv2_descriptor
-#	count=1 ;\
-#	for plugin_name in $(PLUGIN_NAMES); do \
-#	$(OBJCOPY) --redefine-sym  lv2_descriptor=lv2_descriptor_$$count plugins/$$plugin_name.lv2/$$plugin_name.o ;\
-#	let "count+=1" ; \
-#	done
 
-staticizer/staticizer : 
-	make -C staticizer
-
-staticize_plugins : staticizer/staticizer
-	LV2_PATH=`readlink -f ./plugins` ./staticizer/staticizer
+staticize_plugins : staticizer/staticizer.py
+	./staticizer/staticizer.py
 

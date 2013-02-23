@@ -4,5 +4,5 @@
 
 <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/wavplayer>
   a lv2:Plugin;
-  lv2:binary <wavplayer.o>;
+  lv2:binary <wavplayer.a>;
   rdfs:seeAlso <wavplayer.ttl>.

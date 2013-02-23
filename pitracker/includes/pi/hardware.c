@@ -63,6 +63,7 @@ void hardware_init() {
 }
 
 #include <sys/types.h>
+extern int dummy(int);
 
 int usleep(useconds_t __useconds) {
     // Pause for about t ms
@@ -71,5 +72,6 @@ int usleep(useconds_t __useconds) {
     for (;t>0;t--) {
         for (i=5000;i>0;i--) dummy(i);
     }
+    return __useconds;
 }
 

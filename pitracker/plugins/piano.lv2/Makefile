@@ -1,10 +1,41 @@
-CFLAGS ?= -I../../includes -I../../includes/posix -Wall -O2 -std=c99 -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfpu=vfp
+CFLAGS ?= -std=c99 -Wall -shared -fPIC -DPIC
+PKGFLAGS = `pkg-config --cflags --libs lv2`
+LV2NAME = piano
 
-all : piano.o
+BUNDLE=$(LV2NAME).lv2
+
+TTL=$(LV2NAME).ttl
+
+ifndef INSTALL_DIR
+INSTALL_DIR=`readlink -f ~/.lv2`
+endif
+
+ifdef STATIC_LV2
+BINARY=$(LV2NAME).a
+else
+BINARY=$(LV2NAME).so
+endif
+
+all : $(BUNDLE)
+
+$(BUNDLE): manifest.ttl $(TTL) $(BINARY)
+	mkdir -p $(BUNDLE)
+	cp *.ttl $(BINARY) $(BUNDLE);
+
+install : $(BUNDLE)
+	mkdir -p $(INSTALL_DIR)
+	cp -R $(BUNDLE) $(INSTALL_DIR)
+
+%.a : %.o
+	ar rcs $@ $^
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+%.so : %.c
+	$(CC) $(CFLAGS) $(PKGFLAGS)-c $^ -o $@
 
 clean :
-	rm -f *.o
-
-piano.o : piano.c
-	$(CC) $(CFLAGS) -c piano.c -o piano.o
+	rm -f *.o *.a *.so
+	rm -rf $(BUNDLE)
 

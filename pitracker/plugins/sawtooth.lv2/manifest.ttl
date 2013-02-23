@@ -4,5 +4,5 @@
 
 <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/sawtooth>
   a lv2:Plugin;
-  lv2:binary <sawtooth.o>;
+  lv2:binary <sawtooth.a>;
   rdfs:seeAlso <sawtooth.ttl>.

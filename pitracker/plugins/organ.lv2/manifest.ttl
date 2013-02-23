@@ -4,5 +4,5 @@
 
 <http://www.joebutton.co.uk/software/baremetal-music-machine/plugins/organ>
   a lv2:Plugin;
-  lv2:binary <organ.o>;
+  lv2:binary <organ.a>;
   rdfs:seeAlso <organ.ttl>.
