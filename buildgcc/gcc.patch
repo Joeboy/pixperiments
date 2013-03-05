@@ -1,0 +1,13 @@
+--- gcc/config/arm/t-arm-elf.orig	2013-02-25 10:17:47.635574602 +0000
++++ gcc/config/arm/t-arm-elf	2013-02-25 10:18:44.087577333 +0000
+@@ -17,8 +17,8 @@
+ # along with GCC; see the file COPYING3.  If not see
+ # <http://www.gnu.org/licenses/>.
+ 
+-MULTILIB_OPTIONS     = marm/mthumb
+-MULTILIB_DIRNAMES    = arm thumb
++MULTILIB_OPTIONS     = marm
++MULTILIB_DIRNAMES    = arm
+ MULTILIB_EXCEPTIONS  = 
+ MULTILIB_MATCHES     =
+ 
