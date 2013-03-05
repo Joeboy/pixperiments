@@ -6,68 +6,133 @@
 
 # Usage
 # sudo ./build_gcc
+#
+set -e
 
 # Setup vars
 CWD=`pwd`
 export TARGET=arm-none-eabi
 export PREFIX=$CWD/gnuarm
 export PATH=$PATH:$PREFIX/bin
+export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
 
-rm -rf build-*
-rm -rf gcc-4.7.1
-rm -rf binutils-2.22
-rm -rf newlib-2.0.0
+mkdir -p src
 
+rm -rf build/*
+rm -rf gnuarm
+rm -rf src/gcc-4.7.2
+rm -rf src/binutils-2.22
+rm -rf src/newlib-2.0.0
+
+cd src
 # Get archives
 if [ ! -f binutils-2.22.tar.bz2 ]; then
     wget http://ftp.gnu.org/gnu/binutils/binutils-2.22.tar.bz2
 fi
-if [ ! -f gcc-4.7.1.tar.bz2 ]; then
-    wget http://ftp.gnu.org/gnu/gcc/gcc-4.7.1/gcc-4.7.1.tar.bz2
+if [ ! -f gcc-4.7.2.tar.bz2 ]; then
+    wget http://ftp.gnu.org/gnu/gcc/gcc-4.7.2/gcc-4.7.2.tar.bz2
 fi
 if [ ! -f newlib-2.0.0.tar.gz ]; then
     wget ftp://sourceware.org/pub/newlib/newlib-2.0.0.tar.gz
 fi
 
 # Extract archives
-bzip2 -dc binutils-2.22.tar.bz2 | tar -xf -
-bzip2 -dc gcc-4.7.1.tar.bz2 | tar -xf -
+if [ ! -d binutils-2.22 ]; then
+    bzip2 -dc binutils-2.22.tar.bz2 | tar -xf -
+fi
+if [ ! -d gcc-4.7.2 ]; then
+bzip2 -dc gcc-4.7.2.tar.bz2 | tar -xf -
+cd gcc-4.7.2
+patch -p0 < ../../gcc.patch
+cd ..
+fi
+if [ ! -d newlib-2.0.0.tar.gz ]; then
 tar -xzf newlib-2.0.0.tar.gz
+fi
+
+./gcc-4.7.2/contrib/download_prerequisites
+
+cd ..
+
+mkdir -p build
+cd build
+
+#export TARGET_CFLAGS="-marm -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math -marm"
 
 # Build binutils
-mkdir build-binutils
-cd build-binutils
-../binutils-2.22/configure --target=$TARGET --prefix=$PREFIX
+rm -rf binutils
+mkdir binutils
+cd binutils
+../../src/binutils-2.22/configure --target=$TARGET --prefix=$PREFIX
 make all
 make install
+cd ..
 
+echo "COMPILE GMP"
+rm -rf gmp
+mkdir gmp
+cd gmp
+../../src/gmp/configure --prefix=$PREFIX --disable-shared
+make
+make check
+make install
+cd ..
+
+
+echo "COMPILE MPFR"
+rm -rf mpfr
+mkdir mpfr
+cd mpfr
+../../src/mpfr/configure --prefix=$PREFIX --with-gmp=$PREFIX --disable-shared
+make
+make check
+make install
+cd ..
+
+
+echo "COMPILE MPC"
+rm -rf mpc
+mkdir mpc
+cd mpc
+../../src/mpc/configure --target=$TARGET --prefix=$PREFIX --with-gmp=$PREFIX --with-mpfr=$PREFIX --disable-shared
+make
+make check
+make install
+cd ..
+
+echo "--------------------building gcc (1)--------------------"
 # Build GCC
-mkdir ../build-gcc
-cd ../build-gcc
-../gcc-4.7.1/configure --target=$TARGET --prefix=$PREFIX --without-headers --with-newlib --with-gnu-as --with-gnu-ld
+mkdir -p gcc
+cd gcc
+../../src/gcc-4.7.2/configure --target=$TARGET --prefix=$PREFIX --without-headers --with-newlib --enable-languages="c" --with-gnu-as --with-gnu-ld --with-cpu=arm1176jzf-s --with-fpu=vfp --with-mode=arm --with-float=hard
 make all-gcc
 make install-gcc
+cd ..
 
-export TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math -marm"
 
-mkdir ../build-newlib
-cd ../build-newlib
-mv ../newlib-2.0.0/newlib/libc/sys/arm/crt0.S ../newlib-2.0.0/newlib/libc/sys/arm/crt0.S.orig
-cp ../crt0.S ../newlib-2.0.0/newlib/libc/sys/arm/
-mv ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c.orig
-touch ../newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c
-mv ../newlib-2.0.0/newlib/libc/sys/arm/syscalls.c ../newlib-2.0.0/newlib/libc/sys/arm/syscalls.c.orig
-cp ../syscalls.c ../newlib-2.0.0/newlib/libc/sys/arm/
-TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" ../newlib-2.0.0/configure --target=$TARGET --prefix=$PREFIX
-TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" make all
-TARGET_CFLAGS="-mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math" make install
+echo "==============================building newlib================================="
+rm -rf newlib
+mkdir newlib
+cd newlib
+mv ../../src/newlib-2.0.0/newlib/libc/sys/arm/crt0.S ../../src/newlib-2.0.0/newlib/libc/sys/arm/crt0.S.orig
+cp ../../crt0.S ../../src/newlib-2.0.0/newlib/libc/sys/arm/
+mv ../../src/newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c ../../src/newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c.orig
+touch ../../src/newlib-2.0.0/newlib/libc/sys/arm/libcfunc.c
+mv ../../src/newlib-2.0.0/newlib/libc/sys/arm/syscalls.c ../../src/newlib-2.0.0/newlib/libc/sys/arm/syscalls.c.orig
+cp ../../syscalls.c ../../src/newlib-2.0.0/newlib/libc/sys/arm/
+../../src/newlib-2.0.0/configure --target=$TARGET --prefix=$PREFIX
+make all
+make install
+cd ..
 
-cd ../build-gcc
-../gcc-4.1.1/configure --target=$TARGET --prefix=$PREFIX --with-newlib --with-fpu=vfp --with-float=hard --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp
+echo "===================building gcc (2)============================="
+cd gcc
+../../src/gcc-4.7.2/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --with-newlib --with-cpu=arm1176jzf-s --with-fpu=vfp --with-mode=arm --with-float=hard --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp
 make all
 make install
 
+echo "==================================building libgcc.a========================================="
 # Build libgcc.a
-make all-target-libgcc CFLAGS_FOR_TARGET="-g -O2 -mhard-float -mfpu=vfp -mfloat-abi=hard"
+make all-target-libgcc CFLAGS_FOR_TARGET="-g -O2 -mhard-float -mfpu=vfp -mfloat-abi=hard -fno-unwind-tables -fno-exception"
 make install-target-libgcc
 
