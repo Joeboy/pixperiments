@@ -1,6 +1,5 @@
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <malloc.h>
 #include <math.h>
 
@@ -19,8 +18,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265
 #endif
+#include <../../includes/pi/debug.h>
 
-static LV2_Descriptor *synthDescriptor = NULL;
 
 enum voice_state {on, released, off};
 
@@ -60,7 +59,7 @@ static LV2_Handle instantiate(const LV2_Descriptor *descriptor,
         }
     }
     if (map == NULL) {
-        printf("Error: Host does not support map feature\r\n");
+        debug("Error: Host does not support map feature\r\n");
     }
 
     plugin->midi_Event = map->map(NULL, LV2_MIDI__MidiEvent);
@@ -212,24 +211,26 @@ static void run(LV2_Handle instance, uint32_t sample_count) {
     }
 }
 
+LV2_Descriptor synthDescriptor;
 
 LV2_SYMBOL_EXPORT
 const LV2_Descriptor *lv2_descriptor(uint32_t index)
 {
-    if (!synthDescriptor) {
-        synthDescriptor = (LV2_Descriptor *)malloc(sizeof(LV2_Descriptor));
-
-        synthDescriptor->URI = "http://www.joebutton.co.uk/software/pitracker/plugins/organ";
-        synthDescriptor->activate = NULL;
-        synthDescriptor->cleanup = cleanup;
-        synthDescriptor->connect_port = connect_port;
-        synthDescriptor->deactivate = NULL;
-        synthDescriptor->instantiate = instantiate;
-        synthDescriptor->run = run;
-        synthDescriptor->extension_data = NULL;
+    static bool initialised = false;
+    debug("organ descriptor\r\n");
+    if (!initialised) {
+        synthDescriptor.URI = "http://www.joebutton.co.uk/software/pitracker/plugins/organ";
+        synthDescriptor.activate = NULL;
+        synthDescriptor.cleanup = cleanup;
+        synthDescriptor.connect_port = connect_port;
+        synthDescriptor.deactivate = NULL;
+        synthDescriptor.instantiate = instantiate;
+        synthDescriptor.run = run;
+        synthDescriptor.extension_data = NULL;
+        initialised = true;
     }
 
-    if (index == 0) return synthDescriptor;
+    if (index == 0) return &synthDescriptor;
     return NULL;
 }
 

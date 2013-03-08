@@ -18,13 +18,14 @@ else
 PLATFORM = RASPBERRY_PI
 AS = arm-none-eabi-as
 export CC = arm-none-eabi-gcc
+export CXX = arm-none-eabi-g++
 export LD = arm-none-eabi-ld
 OBJDUMP = arm-none-eabi-objdump
 OBJCOPY = arm-none-eabi-objcopy
 
-EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
+EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
 AFLAGS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
-LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/ -L../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.1
+LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/fpu/ -L ../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.2/fpu/
 
 PLATFORM_SRC = $(wildcard includes/pi/*.c)
 
@@ -34,6 +35,8 @@ endif
 
 
 export CFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -std=c99 $(EXTRA_CFLAGS)
+
+export CXXFLAGS = -D$(PLATFORM) -I$(CWD)/includes -Wall -O2 -I$(CWD)/includes/posix -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math -fno-exceptions
 
 PLUGIN_DIRS = $(wildcard plugins/*.lv2)
 PLUGIN_OBJS = $(shell cat plugin_library_list.txt)
@@ -58,7 +61,7 @@ clean :
 	done
 
 pitracker.o : pitracker.c
-	$(CC) $(CFLAGS) -c $^ -o $@
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 tune.o : tune.mid
 	$(LD) -s -r -o $@ -b binary $^
@@ -69,12 +72,15 @@ vectors.o : vectors.s
 includes/%.o: includes/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
+includes/%.o: includes/%.cpp
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
 posix: $(POSIX_OBJS)
 
 platform: $(PLATFORM_OBJS)
 
-pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform plugins includes/lv2.o includes/mf_read.o
-	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o tune.o $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm
+pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform plugins includes/lv2.o includes/mf_read.o includes/syscalls.o includes/cpp_shims.o
+	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o includes/syscalls.o includes/cpp_shims.o tune.o $(PLUGIN_OBJS) /home/joe/building/pi/pixperiments/pitracker/installed_plugins/mda.lv2/Shepard.a $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm -lstdc++
 
 # This is rotten and almost certainly broken:
 pitracker_exe :  tune.o platform includes/lv2.o includes/mf_read.o plugins

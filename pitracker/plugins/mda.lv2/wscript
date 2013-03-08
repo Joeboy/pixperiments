@@ -92,7 +92,6 @@ def build(bld):
             VocInput
             Vocoder
     '''.split()
-    plugins = ["Shepard"]
 
     for p in plugins:
         # Build plugin library

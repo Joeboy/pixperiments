@@ -9,7 +9,6 @@
 
 #include "../descriptors.h"
 
-
 typedef struct urid_map_entry {
     const char* uri;
     uint32_t id;
@@ -58,7 +57,7 @@ static const char *urid_unmap_func(LV2_URID_Unmap_Handle handle, LV2_URID urid) 
     }
 }
 
-LV2_URID_Map lv2_urid_map = {NULL, urid_map_func};
+static LV2_URID_Map lv2_urid_map = {NULL, urid_map_func};
 static LV2_URID_Unmap lv2_urid_unmap = {NULL, urid_unmap_func};
 
 static LV2_Feature map_feature       = { LV2_URID__map, &lv2_urid_map };
@@ -70,25 +69,18 @@ static int (*get_descriptor)(uint32_t index);
 
 
 static void load_lv2_descriptors(Lv2World *world) {
-    unsigned int i;
-    Lv2Plugin *cur, *prev=NULL, *first=NULL;
-    for (i=0;lv2_descriptor_loaders[i];i++) {
-        cur = malloc(sizeof(Lv2Plugin));
-        cur->next = NULL;
-        if (prev) prev->next = cur;
-        else first=cur;
-        get_descriptor = lv2_descriptor_loaders[i];
-        cur->descriptor = (LV2_Descriptor*)get_descriptor(0);
-
-        cur->handle = cur->descriptor->instantiate(
-                                                 cur->descriptor,
-                                                 world->sample_rate,
-                                                 NULL,
-                                                 world->lv2_features);
-        prev = cur;
+    for (int i=0;i<num_plugins;i++) {
+        if (i==0) continue;
+        get_descriptor = plugins[i].descriptor;
+        plugins[i].descriptor = (LV2_Descriptor*)get_descriptor(0);
+        plugins[i].handle = plugins[i].descriptor->instantiate(
+                plugins[i].descriptor,
+                world->sample_rate,
+                NULL,
+                world->lv2_features);
     }
-    world->num_plugins = i;
-    world->plugin_list = first;
+    world->num_plugins = num_plugins;
+    world->plugin_list = &plugins[0];
 }
 
 Lv2World *lv2_init(uint32_t sample_rate) {
@@ -98,16 +90,16 @@ Lv2World *lv2_init(uint32_t sample_rate) {
     world->lv2_features[0] = &map_feature;
     world->lv2_features[1] = &unmap_feature;
     world->lv2_features[2] = NULL ;
-	lv2_atom_forge_init(&forge, &lv2_urid_map);
+	lv2_atom_forge_init(&world->forge, &lv2_urid_map);
     load_lv2_descriptors(world);
     return world;
 }
 
 
-lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t id) {
+lv2_port *new_lv2_port(enum lv2_port_type type, uint32_t index) {
     lv2_port *port = malloc(sizeof(lv2_port));
     port->type = type;
-    port->id = id;
+    port->index = index;
     if (type == lv2_audio_port) {
         port->buffer = malloc(sizeof(float) * LV2_AUDIO_BUFFER_SIZE);
         port->buffer_sz = LV2_AUDIO_BUFFER_SIZE;

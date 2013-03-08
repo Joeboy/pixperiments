@@ -23,6 +23,8 @@
 
 extern unsigned int GET32(uint32_t);
 
+static const LV2_URID_Map *lv2_urid_map;
+
 static char *nparms = "\2\2\2\2\1\1\2";
 #define numparms(s) (nparms[(s & 0x70)>>4])
 
@@ -72,7 +74,7 @@ midi_parser *new_midi_parser(LV2_Atom_Forge *forge, int smf_wrapper) {
     parser->forge = forge;
     parser->mpqn = 500000;
     parser->buffer = malloc(BUFFER_SZ);
-    parser->midi_midiEvent = lv2_urid_map.map(NULL, LV2_MIDI__MidiEvent);
+    parser->midi_midiEvent = lv2_urid_map->map(NULL, LV2_MIDI__MidiEvent);
     return parser;
 }
 
@@ -242,10 +244,11 @@ extern uint8_t _binary_tune_mid_start;
 static midi_parser *smf_parser;
 static midi_parser *realtime_parser;
 
-
-void init_midi_source(LV2_Atom_Forge *forge) {
-    smf_parser = new_midi_parser(forge, 1);
-    realtime_parser = new_midi_parser(forge, 0);
+void init_midi_source(Lv2World *world) {
+    const LV2_Feature *map_feature = world->lv2_features[0];
+    lv2_urid_map = map_feature->data;
+    smf_parser = new_midi_parser(&world->forge, 1);
+    realtime_parser = new_midi_parser(&world->forge, 0);
     reset_timer_ms();
 }
 

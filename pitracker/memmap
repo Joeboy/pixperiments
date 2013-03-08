@@ -1,7 +1,7 @@
 
 MEMORY
 {
-    ram : ORIGIN = 0x8000, LENGTH = 0x1c000
+    ram : ORIGIN = 0x8000, LENGTH = 0x60000
 }
 
 SECTIONS
@@ -14,5 +14,8 @@ SECTIONS
    } > ram
    __bss_end__ = .;
    __bss_size__ = __bss_end__ - __bss_start__;
+__exidx_start = .;
+        .ARM.exidx : {*(.ARM.exidx* .gnu.linkonce.armexidx.*)} > ram
+        __exidx_end = .;
 }
 
