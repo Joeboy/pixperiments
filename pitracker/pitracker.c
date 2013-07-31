@@ -81,6 +81,7 @@ int32_t notmain (uint32_t earlypc) {
                     plugin->descriptor->connect_port(plugin->handle, midi_in->id, midi_in->buffer);
                     plugin->descriptor->connect_port(plugin->handle, output_left->id, output_left->buffer);
                     plugin->descriptor->connect_port(plugin->handle, output_right->id, output_right->buffer);
+                    printf("%s\r\n", plugin->descriptor->URI);
                     break;
                 case 0x0d:
                     printf("\r\n");

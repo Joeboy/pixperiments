@@ -24,7 +24,8 @@ OBJCOPY = arm-none-eabi-objcopy
 
 EXTRA_CFLAGS = -I$(CWD)/includes/posix -nostdlib -nostartfiles -ffreestanding -mcpu=arm1176jzf-s -mtune=arm1176jzf-s -mhard-float -mfloat-abi=hard -mfpu=vfp -ffast-math
 AFLAGS = --warn --fatal-warnings -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -march=armv6
-LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/ -L../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.1
+LIB = -L ../buildgcc/gnuarm/arm-none-eabi/lib/fpu/ -L ../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.2/fpu/
+
 
 PLATFORM_SRC = $(wildcard includes/pi/*.c)
 
@@ -45,8 +46,8 @@ POSIX_OBJS = $(POSIX_SRC:.c=.o)
 
 
 clean :
-	rm -f *.o
-	rm -f includes/*.o includes/*/*.o
+	rm -f *.o includes/*.o includes/*/*.o includes/*/*/*.o
+	rm -f *.a includes/*/*.a includes/*/*/*.a
 	rm -f *.bin
 	rm -f *.elf
 	rm -f kernel.img pitracker
@@ -60,11 +61,20 @@ clean :
 pitracker.o : pitracker.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
-tune.o : tune.mid
-	$(LD) -s -r -o $@ -b binary $^
-
 vectors.o : vectors.s
 	$(AS) $(AFLAGS) $^ -o $@
+
+
+EMMC_SRC = $(wildcard includes/pi/emmc/*.c)
+EMMC_OBJS = $(EMMC_SRC:.c=.o) includes/pi/emmc/qmemcpy.o includes/pi/emmc/vectors.o
+
+includes/pi/emmc/%.o: includes/pi/emmc/%.c
+	$(CC) $(CFLAGS) -I$(CWD)/includes/pi/emmc -c $^ -o $@
+includes/pi/emmc/%.o: includes/pi/emmc/%.S
+	$(AS) $(AFLAGS) $^ -o $@
+includes/pi/emmc/libemmc.a: $(EMMC_OBJS)
+	ar rcs $@ $^
+
 
 includes/%.o: includes/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
@@ -73,12 +83,13 @@ posix: $(POSIX_OBJS)
 
 platform: $(PLATFORM_OBJS)
 
-pitracker.elf : memmap vectors.o pitracker.o tune.o posix platform plugins includes/lv2.o includes/mf_read.o
-	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o tune.o $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm
+pitracker.elf : memmap vectors.o pitracker.o posix platform plugins includes/lv2.o includes/mf_read.o includes/pi/emmc/libemmc.a
+	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o includes/pi/emmc/libemmc.a $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm
+
 
 # This is rotten and almost certainly broken:
-pitracker_exe :  tune.o platform includes/lv2.o includes/mf_read.o plugins
-	$(CC) $(CFLAGS) pitracker.c $(PLUGIN_OBJS) includes/lv2.o includes/mf_read.o tune.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
+pitracker_exe :  platform includes/lv2.o includes/mf_read.o plugins
+	$(CC) $(CFLAGS) pitracker.c $(PLUGIN_OBJS) includes/lv2.o includes/mf_read.o $(PLATFORM_OBJS) -lm -lasound -o pitracker
 
 kernel_img : pitracker.elf
 	$(OBJCOPY) pitracker.elf -O binary kernel.img

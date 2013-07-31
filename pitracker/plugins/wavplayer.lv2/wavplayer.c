@@ -12,9 +12,9 @@
 #define NUM_VOICES 6
 #define VOICE_CLAMPER  (float)1/NUM_VOICES
 
-#define MIDI_IN 0
 #define OUTPUT_LEFT 1
 #define OUTPUT_RIGHT 2
+#define MIDI_IN 3
 
 extern uint8_t _binary_sample_wav_start;
 

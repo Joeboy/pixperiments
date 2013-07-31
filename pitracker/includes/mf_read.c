@@ -5,6 +5,7 @@
 
 #ifdef RASPBERRY_PI
 #include <pi/hardware.h>
+#include <pi/emmc/ff.h>
 #endif
 
 #ifdef LINUX
@@ -28,6 +29,8 @@ static char *nparms = "\2\2\2\2\1\1\2";
 
 // Not sure what the "right" size for this would be. 8 seems harmless for my purposes.
 #define BUFFER_SZ 8
+
+uint8_t *smf_bytes;
 
 
 static uint32_t make_number(uint8_t* buf, unsigned int num_bytes) {
@@ -236,14 +239,32 @@ unsigned int process_midi_byte(midi_parser *parser, uint8_t byte) {
     return total_msecs;
 }
 
-// Hack around our (hopefully temporary) lack of file IO
-extern uint8_t _binary_tune_mid_start;
-
 static midi_parser *smf_parser;
 static midi_parser *realtime_parser;
 
 
 void init_midi_source(LV2_Atom_Forge *forge) {
+    FATFS Fatfs;
+    f_mount(0, &Fatfs);
+    FIL fp;
+    FRESULT rc = f_open(&fp, "tune.mid", FA_READ);
+    if (rc) printf("Failed to open tune.mid: %u\r\n", rc);
+    UINT bytes_read;
+    uint32_t buf_sz = 16384;
+    smf_bytes= malloc(buf_sz);
+
+    while (1) {
+        rc = f_read(&fp, smf_bytes, buf_sz, &bytes_read);
+        if (rc || bytes_read < buf_sz) break;
+        buf_sz *= 2;
+        smf_bytes = realloc(smf_bytes, buf_sz);
+        rc = f_lseek(&fp, 0);
+        if (rc) printf("Seek failed: %u\r\n", rc);
+    }
+    if (rc) printf("Failed to read tune.mid: %u\r\n", rc);
+    rc = f_close(&fp);
+    if (rc) printf("Failed to close tune.mid: %u\r\n", rc);
+
     smf_parser = new_midi_parser(forge, 1);
     realtime_parser = new_midi_parser(forge, 0);
     reset_timer_ms();
@@ -255,7 +276,7 @@ void forge_midi_input() {
     static unsigned int midi_stream_index = 0;
     static unsigned int stream_msecs = 0;
     while (get_timer_ms() > stream_msecs) {
-        stream_msecs = process_midi_byte(smf_parser, (uint8_t)*(&_binary_tune_mid_start + midi_stream_index++));
+        stream_msecs = process_midi_byte(smf_parser, (uint8_t)*(smf_bytes + midi_stream_index++));
     }
 #else
     while (uart_input_ready()) {
