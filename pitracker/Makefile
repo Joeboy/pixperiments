@@ -83,8 +83,19 @@ posix: $(POSIX_OBJS)
 
 platform: $(PLATFORM_OBJS)
 
-pitracker.elf : memmap vectors.o pitracker.o posix platform plugins includes/lv2.o includes/mf_read.o includes/pi/emmc/libemmc.a
-	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o includes/pi/emmc/libemmc.a $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm
+pitracker.elf : memmap vectors.o pitracker.o posix platform plugins includes/lv2.o includes/mf_read.o includes/dlfcn.o includes/pi/emmc/libemmc.a
+	$(LD) vectors.o pitracker.o includes/lv2.o includes/mf_read.o includes/dlfcn.o includes/pi/emmc/libemmc.a $(PLUGIN_OBJS) $(PLATFORM_OBJS) $(POSIX_OBJS) -T memmap -o pitracker.elf $(LIB) -lc -lgcc -lm
+
+mul.so: mul.c
+	$(CC) $(CFLAGS) -shared -fPIC -DPIC $^ -o $@
+
+libc.so: ../buildgcc/gnuarm/arm-none-eabi/lib/fpu/libc.a
+	$(CC) $(CFLAGS) -shared -Wl,--whole-archive -fPIC -DPIC $^ -o $@
+libgcc.so: ../buildgcc/gnuarm/lib/gcc/arm-none-eabi/4.7.2/fpu/libgcc.a
+	$(CC) $(CFLAGS) -shared -Wl,--whole-archive -fPIC -DPIC $^ -o $@
+
+organ.so: plugins/organ.lv2/organ.c
+	$(CC) $(CFLAGS) `pkg-config --cflags --libs lv2` -shared -fPIC -DPIC $^ -o $@
 
 
 # This is rotten and almost certainly broken:

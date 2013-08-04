@@ -233,3 +233,11 @@ const LV2_Descriptor *lv2_descriptor(uint32_t index)
     return NULL;
 }
 
+#include "../mul.h"
+
+void printme (char* s) { printf("printme called: %s\r\n", s); }
+
+int mul_wrapper(int x, int y) { return mul(x, y); }
+
+int organ_mul(int x, int y) { return x * y; }
+

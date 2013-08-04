@@ -5,7 +5,7 @@
 
 #ifdef RASPBERRY_PI
 #include <pi/hardware.h>
-#include <pi/emmc/ff.h>
+#include <pi/fatfs.h>
 #endif
 
 #ifdef LINUX
@@ -244,24 +244,13 @@ static midi_parser *realtime_parser;
 
 
 void init_midi_source(LV2_Atom_Forge *forge) {
-    FATFS Fatfs;
-    f_mount(0, &Fatfs);
     FIL fp;
     FRESULT rc = f_open(&fp, "tune.mid", FA_READ);
     if (rc) printf("Failed to open tune.mid: %u\r\n", rc);
     UINT bytes_read;
-    uint32_t buf_sz = 16384;
-    smf_bytes= malloc(buf_sz);
-
-    while (1) {
-        rc = f_read(&fp, smf_bytes, buf_sz, &bytes_read);
-        if (rc || bytes_read < buf_sz) break;
-        buf_sz *= 2;
-        smf_bytes = realloc(smf_bytes, buf_sz);
-        rc = f_lseek(&fp, 0);
-        if (rc) printf("Seek failed: %u\r\n", rc);
-    }
-    if (rc) printf("Failed to read tune.mid: %u\r\n", rc);
+    smf_bytes= malloc(fp.fsize);
+    rc = f_read(&fp, smf_bytes, fp.fsize, &bytes_read);
+    if (rc || bytes_read < fp.fsize) if (rc) printf("Failed to read tune.mid: %u\r\n", rc);
     rc = f_close(&fp);
     if (rc) printf("Failed to close tune.mid: %u\r\n", rc);
 

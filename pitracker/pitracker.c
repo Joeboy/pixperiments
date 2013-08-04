@@ -13,6 +13,7 @@
 #include <pi/uart.h>
 #include <pi/kbhit.h>
 #include <pi/hardware.h>
+#include <pi/fatfs.h>
 #endif
 
 #ifdef LINUX
@@ -24,6 +25,7 @@
 
 #include <mf_read.h>
 #include <lv2.h>
+#include <dlfcn.h>
 
 
 int32_t notmain (uint32_t earlypc) {
@@ -35,6 +37,43 @@ int32_t notmain (uint32_t earlypc) {
 
     printf("\r\nPiTracker console\r\n");
     printf("Samplerate: %d\r\n", samplerate);
+
+    f_mount(0, &fat_fs);
+
+    // A bunch of scratch dlsym tests:
+    int (*mul)(int x, int y);
+    int (*mul_wrapper)(int x, int y);
+    int (*organ_mul)(int x, int y);
+    void (*printme)(char *s);
+    int (*myprintf)(const char *format, ...);
+    long int (*mystrtol)(const char *nptr, char **endptr, int base);
+    size_t (*mystrlen)(const char *s);
+
+    void *dl_handle;
+
+    //dlopen("libgcc.so", 1);
+    dl_handle = dlopen("libc.so", 1);
+
+    mystrlen = dlsym(dl_handle, "strlen");
+    printf("mystrlen(\"This string is 29 chars long.\")=%d\r\n", mystrlen("This string is 29 chars long."));
+
+/*
+    char p[] = "23";
+    printf("static strtol: %d\r\n", strtol(p, p + 2, 10));
+    mystrtol = dlsym(dl_handle, "strtol");
+    printf("mystrtol=%p\r\n", mystrtol);
+//    int z = mystrtol(p, p + 2, 10);
+//    printf("mystrol(\"23\")=%d\r\n", z);
+//    myprintf = dlsym(dl_handle, "printf");
+//    myprintf("printf!!!\r\n");
+    */
+    dl_handle = dlopen("mul.so", 1);
+    dl_handle = dlopen("organ.so", 1);
+    mul_wrapper = dlsym(dl_handle, "mul_wrapper");
+    printf("mul_wrapper(3,7)=%d\r\n", mul_wrapper(3,7));
+//    printme = dlsym(dl_handle, "printme");
+//    printme("hello");
+
 
     uint32_t inkey;
     uint32_t counter=0;
